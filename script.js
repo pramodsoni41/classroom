@@ -261,6 +261,9 @@ function renderAnnouncements(list) {
     </div>
   `).join("");
 }
+// ==========================
+// QUIZ BUTTON (WORKING VERSION)
+// ==========================
 async function goToQuiz() {
 
   const roll = localStorage.getItem("student_roll");
@@ -273,27 +276,31 @@ async function goToQuiz() {
 
   try {
 
-    // 1️⃣ Get token from classroom backend
+    // Open blank tab immediately (prevents popup block)
+    const newTab = window.open("", "_blank");
+
+    // Call backend for token
     const url = `${API_URL}?action=generateToken&roll=${encodeURIComponent(roll)}`;
-    
     const res = await fetch(url);
     const data = await res.json();
 
     if (data.status !== "success") {
+      newTab.close();
       alert("Unable to open quiz.");
       return;
     }
 
-    // 2️⃣ Redirect to quiz app
+    // Final quiz URL
     const quizURL =
       `https://pramodsoni.in/Quiz/?roll=${encodeURIComponent(roll)}`
       + `&token=${encodeURIComponent(data.token)}`
       + `&name=${encodeURIComponent(name || "")}`;
 
-    window.location.href = quizURL;
+    // Redirect new tab
+    newTab.location.href = quizURL;
 
   } catch (err) {
-    alert("Error connecting to quiz server.");
+    alert("Error opening quiz.");
   }
 }
 
