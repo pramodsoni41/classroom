@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbxB1tGks74ymlZkFiF_c4OnVc4qnGwWivlMF0737HlV9oecGpyLUlZh9CTDZnfFqU4/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzRkzcGMKn5VMdYasiBWBWlJzAISP442UTkJZzQV3ztREPj4VpMhJf9N6kLQI0M-dtL/exec";
 
 let dashboardData = null;
 let selectedCourse = null;
@@ -280,7 +280,7 @@ function closePasswordModal() {
   $("passwordModal").style.display = "none";
 }
 
-function goToQuiz() {
+async function goToQuiz() {
 
   const roll = localStorage.getItem("student_roll");
   const name = localStorage.getItem("student_name");
@@ -291,9 +291,32 @@ function goToQuiz() {
     return;
   }
 
-  const url = `https://pramodsoni41.github.io/Quiz/?roll=${encodeURIComponent(roll)}&name=${encodeURIComponent(name)}`;
+  try {
 
-  window.location.href = url;
+    // 🔐 Ask backend to generate token
+    const url = `${API_URL}?action=generateToken&roll=${encodeURIComponent(roll)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.status !== "success") {
+      alert("Unable to start quiz.");
+      return;
+    }
+
+    const token = data.token;
+
+    // ✅ Secure redirect
+    const quizUrl =
+      `https://pramodsoni.in/Quiz/?roll=${encodeURIComponent(roll)}`
+      + `&token=${encodeURIComponent(token)}`
+      + `&name=${encodeURIComponent(name)}`;
+
+    window.location.href = quizUrl;
+
+  } catch (err) {
+    console.error(err);
+    alert("Server error.");
+  }
 }
 // ==========================
 // CHANGE PASSWORD
