@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Student Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <header class="topbar">
+    <div>
+      <h2>Student Dashboard</h2>
+      <p id="studentInfo">Loading...</p>
+    </div>
+    <button onclick="logout()" class="logout-btn">Logout</button>
+  </header>
+
+  <main class="container">
+
+    <section class="section">
+      <h3>Announcements</h3>
+      <div id="announcements" class="grid"></div>
+    </section>
+
+    <section class="section">
+      <h3>Marks</h3>
+      <div id="marks" class="card"></div>
+    </section>
+
+    <section class="section">
+      <h3>Attendance</h3>
+      <div id="attendance" class="card"></div>
+    </section>
+
+    <section class="section">
+      <h3>Class Notes</h3>
+      <div id="notes" class="grid"></div>
+    </section>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
