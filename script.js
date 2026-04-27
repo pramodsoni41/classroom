@@ -123,33 +123,24 @@ function selectCourse(course) {
 }
 
 function renderMarks(marksList) {
-  const box = document.getElementById("marks");
 
   if (!marksList || marksList.length === 0) {
-    box.innerHTML = "<p>No marks uploaded for this course.</p>";
+    document.getElementById("marks").innerHTML =
+      "<p>No marks uploaded for this course.</p>";
     return;
   }
 
-  let html = "";
+  const m = marksList[0]; // only one row per course
 
-  marksList.forEach(marks => {
-    html += "<table>";
-
-    for (let key in marks) {
-      if (key !== "RollNo" && key !== "Course") {
-        html += `
-          <tr>
-            <td>${key}</td>
-            <td>${marks[key]}</td>
-          </tr>
-        `;
-      }
-    }
-
-    html += "</table>";
-  });
-
-  box.innerHTML = html;
+  document.getElementById("marks").innerHTML = `
+    <table>
+      <tr><td>Quiz1</td><td>${m.Quiz1 || "-"}</td></tr>
+      <tr><td>Quiz2</td><td>${m.Quiz2 || "-"}</td></tr>
+      <tr><td>MidSem</td><td>${m.MidSem || "-"}</td></tr>
+      <tr><td>EndSem</td><td>${m.EndSem || "-"}</td></tr>
+      <tr><td>Total</td><td>${m.Total || "-"}</td></tr>
+    </table>
+  `;
 }
 
 function renderAttendance(attendanceList) {
