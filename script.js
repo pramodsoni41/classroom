@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbzRkzcGMKn5VMdYasiBWBWlJzAISP442UTkJZzQV3ztREPj4VpMhJf9N6kLQI0M-dtL/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzmNlfmPDNXTGNdTOqcrbeoN6nQanaBV5d30g2v9pqQ8xpE5whOXpp1In23SYV13v3l/exec";
 
 let dashboardData = null;
 let selectedCourse = null;
