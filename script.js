@@ -42,22 +42,20 @@ async function login() {
 
   try {
 
-    const url = `${API_URL}?action=login&roll=${encodeURIComponent(roll)}&password=${encodeURIComponent(password)}`;
+    const url = `${API_URL}?action=validateLogin&regNo=${encodeURIComponent(roll)}&password=${encodeURIComponent(password)}`;
+
     const res = await fetch(url);
     const data = await res.json();
 
-    if (data.status !== "success") {
-      return setMessage(msg, data.message || "Login failed.");
+    if (data.status !== "ok") {
+      return setMessage(msg, "Invalid login.");
     }
 
     // Save session
     localStorage.setItem("student_roll", roll);
-    localStorage.setItem("student_name", data.student.Name);
-	localStorage.setItem("student_phone", data.student.Phone || "");
-    // Force password change if default
-    if (roll === password) {
-      alert("Please change your password.");
-    }
+    localStorage.setItem("student_name", data.name);
+    localStorage.setItem("student_phone", data.phone || "");
+    localStorage.setItem("session_token", data.sessionToken);
 
     redirect("dashboard.html");
 
