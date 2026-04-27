@@ -292,30 +292,24 @@ async function goToQuiz() {
   }
 
   try {
-
-    // 🔐 Ask backend to generate token
     const url = `${API_URL}?action=generateToken&roll=${encodeURIComponent(roll)}`;
     const res = await fetch(url);
     const data = await res.json();
 
     if (data.status !== "success") {
-      alert("Unable to start quiz.");
+      alert("Unable to open quiz.");
       return;
     }
 
-    const token = data.token;
-
-    // ✅ Secure redirect
     const quizUrl =
       `https://pramodsoni.in/Quiz/?roll=${encodeURIComponent(roll)}`
-      + `&token=${encodeURIComponent(token)}`
-      + `&name=${encodeURIComponent(name)}`;
+      + `&token=${encodeURIComponent(data.token)}`
+      + `&name=${encodeURIComponent(name || "")}`;
 
     window.location.href = quizUrl;
 
   } catch (err) {
-    console.error(err);
-    alert("Server error.");
+    alert("Server error while opening quiz.");
   }
 }
 // ==========================
