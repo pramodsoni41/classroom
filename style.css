@@ -9,25 +9,29 @@ body {
   color: #1e293b;
 }
 
+/* ================= LOGIN PAGE ================= */
+
 .login-page {
+  min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
- background: linear-gradient(135deg, #1d4ed8, #38bdf8);
+  background: linear-gradient(135deg, #1d4ed8, #38bdf8);
+  padding: 16px;
 }
 
 .login-card {
   width: 360px;
-  background: white;
+  max-width: 100%;
+  background: #ffffff;
   padding: 32px;
   border-radius: 18px;
-  box-shadow: 0 20px 45px rgba(0,0,0,0.2);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2);
   text-align: center;
 }
 
 .login-card h1 {
-  margin-bottom: 8px;
+  margin: 0 0 8px;
   color: #1d4ed8;
 }
 
@@ -46,13 +50,18 @@ input {
   font-size: 15px;
 }
 
+input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
 button {
   width: 100%;
   padding: 13px;
   border: none;
   border-radius: 10px;
   background: #2563eb;
-  color: white;
+  color: #ffffff;
   font-size: 16px;
   cursor: pointer;
 }
@@ -61,14 +70,32 @@ button:hover {
   background: #1d4ed8;
 }
 
-#loginMessage {
+#loginMessage,
+#passMsg {
   margin-top: 12px;
   font-size: 14px;
 }
 
+.divider {
+  margin: 12px 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.quiz-btn {
+  background: #10b981;
+  margin-top: 5px;
+}
+
+.quiz-btn:hover {
+  background: #059669;
+}
+
+/* ================= DASHBOARD ================= */
+
 .topbar {
   background: #2563eb;
-  color: white;
+  color: #ffffff;
   padding: 18px 28px;
   display: flex;
   justify-content: space-between;
@@ -84,6 +111,11 @@ button:hover {
   font-size: 14px;
 }
 
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
 .logout-btn {
   width: auto;
   background: #ef4444;
@@ -92,6 +124,16 @@ button:hover {
 
 .logout-btn:hover {
   background: #dc2626;
+}
+
+.change-pass-btn {
+  width: auto;
+  background: #f59e0b;
+  padding: 10px 16px;
+}
+
+.change-pass-btn:hover {
+  background: #d97706;
 }
 
 .container {
@@ -109,6 +151,12 @@ button:hover {
   color: #0f172a;
 }
 
+.two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -116,10 +164,10 @@ button:hover {
 }
 
 .card {
-  background: white;
+  background: #ffffff;
   padding: 20px;
   border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 .card h4 {
@@ -130,47 +178,20 @@ button:hover {
 .card a {
   display: inline-block;
   margin-top: 10px;
-  color: white;
+  color: #ffffff;
   background: #2563eb;
   padding: 9px 14px;
   border-radius: 8px;
   text-decoration: none;
 }
 
+.card a:hover {
+  background: #1d4ed8;
+}
+
 .date {
   color: #64748b;
   font-size: 13px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-td {
-  padding: 11px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-td:first-child {
-  font-weight: bold;
-  color: #334155;
-}
-
-@media (max-width: 600px) {
-  .topbar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .logout-btn {
-    width: 100%;
-  }
-
-  .login-card {
-    width: 90%;
-  }
 }
 
 .course-tabs {
@@ -192,155 +213,115 @@ td:first-child {
 
 .active-course {
   background: #2563eb !important;
-  color: white !important;
+  color: #ffffff !important;
 }
 
-.two-column {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
+table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-.password-card {
-  max-width: 420px;
+td {
+  padding: 11px;
+  border-bottom: 1px solid #e2e8f0;
 }
+
+td:first-child {
+  font-weight: bold;
+  color: #334155;
+}
+
+/* ================= MODAL ================= */
+
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+
+.modal-content {
+  width: 320px;
+  max-width: 100%;
+  background: #ffffff;
+  padding: 25px;
+  border-radius: 12px;
+  position: relative;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  animation: fadeIn 0.25s ease;
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  color: #0f172a;
+}
+
+.close-btn {
+  position: absolute;
+  right: 12px;
+  top: 8px;
+  font-size: 22px;
+  cursor: pointer;
+  color: #475569;
+}
+
+.close-btn:hover {
+  color: #0f172a;
+}
+
+.modal-content input {
+  margin: 8px 0;
+  padding: 11px;
+}
+
+.modal-content button {
+  margin-top: 8px;
+  padding: 11px;
+}
+
+/* ================= MOBILE ================= */
 
 @media (max-width: 700px) {
   .two-column {
     grid-template-columns: 1fr;
   }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .logout-btn,
+  .change-pass-btn {
+    width: 100%;
+  }
+
+  .login-card {
+    width: 100%;
+  }
 }
 
-/* Header buttons */
-.header-actions {
-  display: flex;
-  gap: 10px;
-}
+/* ================= ANIMATION ================= */
 
-.change-pass-btn {
-  background: #f59e0b;
-  color: white;
-  padding: 10px 16px;
-  border-radius: 8px;
-  border: none;
-}
-
-.change-pass-btn:hover {
-  background: #d97706;
-}
-
-/* Modal background */
-.modal {
-  display: none; /* hidden by default */
-
-  position: fixed;   /* 🔴 THIS IS KEY */
-  z-index: 1000;
-
-  top: 0;
-  left: 0;
-
-  width: 100%;
-  height: 100%;
-
-  background: rgba(0,0,0,0.5);
-
-  /* 🔴 CENTERING */
-  justify-content: center;
-  align-items: center;
-}
-
-.modal-content {
-  background: white;
-  padding: 25px;
-  border-radius: 12px;
-  width: 320px;
-
-  position: relative;
-
-  /* optional */
-  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-}
-
-/* Close button */
-.close-btn {
-  position: absolute;
-  right: 12px;
-  top: 8px;
-  font-size: 20px;
-  cursor: pointer;
-}
-
-/* Modal inputs */
-.modal-content input {
-  width: 100%;
-  margin: 8px 0;
-  padding: 10px;
-}
-
-.divider {
-  margin: 12px 0;
-  color: #64748b;
-  font-size: 13px;
-}
-
-.quiz-btn {
-  background: #10b981;
-  margin-top: 5px;
-}
-
-.quiz-btn:hover {
-  background: #059669;
-}
-/* 🔹 Modal Background */
-.modal {
-  display: none;
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.5);
-  justify-content: center;
-  align-items: center;
-}
-
-/* 🔹 Modal Box */
-.modal-content {
-  background: #fff;
-  padding: 25px;
-  border-radius: 12px;
-  width: 320px;
-  text-align: center;
-  animation: fadeIn 0.3s ease;
-}
-
-/* 🔹 Close Button */
-.close {
-  float: right;
-  font-size: 22px;
-  cursor: pointer;
-}
-
-/* 🔹 Inputs */
-.modal-content input {
-  width: 100%;
-  padding: 10px;
-  margin: 8px 0;
-}
-
-/* 🔹 Button */
-.modal-content button {
-  width: 100%;
-  padding: 10px;
-  background: #2563eb;
-  color: white;
-  border: none;
-  border-radius: 6px;
-}
-
-/* 🔹 Animation */
 @keyframes fadeIn {
-  from { transform: scale(0.9); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
