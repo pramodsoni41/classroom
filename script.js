@@ -292,7 +292,7 @@ function goToQuiz() {
   }
 
   // Simple redirect (no need to pass URL params)
-  window.location.href = "quiz.html";
+  window.location.href = "pramodsoni41.github.io/Quiz/";
 }
 // ==========================
 // CHANGE PASSWORD
