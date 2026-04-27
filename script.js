@@ -268,40 +268,22 @@ async function goToQuiz() {
 
   const roll = localStorage.getItem("student_roll");
   const name = localStorage.getItem("student_name");
+  const password = prompt("Enter your password to continue:");
 
-  if (!roll) {
-    alert("Session expired. Please login again.");
-    return redirect("index.html");
+  if (!roll || !password) {
+    alert("Session expired or password missing.");
+    return;
   }
 
-  try {
+  // Open new tab immediately
+  const newTab = window.open("", "_blank");
 
-    // Open blank tab immediately (prevents popup block)
-    const newTab = window.open("", "_blank");
+  const quizURL =
+    `https://pramodsoni.in/Quiz/?roll=${encodeURIComponent(roll)}`
+    + `&password=${encodeURIComponent(password)}`
+    + `&name=${encodeURIComponent(name || "")}`;
 
-    // Call backend for token
-    const url = `${API_URL}?action=generateToken&roll=${encodeURIComponent(roll)}`;
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (data.status !== "success") {
-      newTab.close();
-      alert("Unable to open quiz.");
-      return;
-    }
-
-    // Final quiz URL
-    const quizURL =
-      `https://pramodsoni.in/Quiz/?roll=${encodeURIComponent(roll)}`
-      + `&token=${encodeURIComponent(data.token)}`
-      + `&name=${encodeURIComponent(name || "")}`;
-
-    // Redirect new tab
-    newTab.location.href = quizURL;
-
-  } catch (err) {
-    alert("Error opening quiz.");
-  }
+  newTab.location.href = quizURL;
 }
 
 // ==========================
