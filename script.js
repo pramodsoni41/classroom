@@ -268,20 +268,23 @@ async function goToQuiz() {
 
   const roll = localStorage.getItem("student_roll");
   const name = localStorage.getItem("student_name");
-  const password = prompt("Enter your password to continue:");
+  const password = localStorage.getItem("student_pass");
+  const phone = localStorage.getItem("student_phone");
 
   if (!roll || !password) {
-    alert("Session expired or password missing.");
+    alert("Session expired. Please login again.");
+    window.location.href = "index.html";
     return;
   }
 
-  // Open new tab immediately
+  // Open new tab directly (no popup)
   const newTab = window.open("", "_blank");
 
   const quizURL =
     `https://pramodsoni.in/Quiz/?roll=${encodeURIComponent(roll)}`
     + `&password=${encodeURIComponent(password)}`
-    + `&name=${encodeURIComponent(name || "")}`;
+    + `&name=${encodeURIComponent(name || "")}`
+    + `&phone=${encodeURIComponent(phone || "")}`;
 
   newTab.location.href = quizURL;
 }
