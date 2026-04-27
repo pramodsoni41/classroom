@@ -9,12 +9,12 @@ async function login() {
   const msg = document.getElementById("loginMessage");
 
   if (!roll || !password) {
-    msg.innerText = "Please enter roll number and password.";
+    msg.innerText = "Enter roll and password.";
     msg.style.color = "red";
     return;
   }
 
-  msg.innerText = "Checking login...";
+  msg.innerText = "Checking...";
   msg.style.color = "#555";
 
   try {
@@ -23,15 +23,24 @@ async function login() {
     const data = await res.json();
 
     if (data.status === "success") {
+
       localStorage.setItem("student_roll", roll);
       localStorage.setItem("student_name", data.student.Name);
+
+      // 🔥 OPTIONAL: Force password change if default
+      if (roll === password) {
+        alert("Please change your password");
+      }
+
       window.location.href = "dashboard.html";
+
     } else {
       msg.innerText = data.message;
       msg.style.color = "red";
     }
-  } catch (error) {
-    msg.innerText = "Unable to connect to server.";
+
+  } catch {
+    msg.innerText = "Server error.";
     msg.style.color = "red";
   }
 }
@@ -290,16 +299,5 @@ function logout() {
   localStorage.removeItem("student_name");
   window.location.href = "index.html";
 }
-function goToQuiz() {
 
-  const roll = document.getElementById("roll").value.trim();
-
-  // 🔴 If you want to pass roll number
-  if (roll) {
-    window.location.href = `quiz.html?roll=${encodeURIComponent(roll)}`;
-  } else {
-    // 🔴 Or open quiz normally
-    window.location.href = "https://pramodsoni41.github.io/Quiz/";
-  }
-}
 loadDashboard();
