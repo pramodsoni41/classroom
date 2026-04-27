@@ -26,12 +26,12 @@ function redirect(page) {
 
 
 // ==========================
-// LOGIN
+// LOGIN (CLASSROOM ONLY)
 // ==========================
 async function login() {
 
-  const roll = $("roll")?.value.trim();
-  const password = $("password")?.value.trim();
+  const roll = $("roll").value.trim();
+  const password = $("password").value.trim();
   const msg = $("loginMessage");
 
   if (!roll || !password) {
@@ -42,20 +42,19 @@ async function login() {
 
   try {
 
-    const url = `${API_URL}?action=validateLogin&regNo=${encodeURIComponent(roll)}&password=${encodeURIComponent(password)}`;
+    const url = `${API_URL}?action=login&roll=${encodeURIComponent(roll)}&password=${encodeURIComponent(password)}`;
 
     const res = await fetch(url);
     const data = await res.json();
 
-    if (data.status !== "ok") {
-      return setMessage(msg, "Invalid login.");
+    if (data.status !== "success") {
+      return setMessage(msg, data.message || "Invalid login.");
     }
 
     // Save session
-    localStorage.setItem("student_roll", roll);
-    localStorage.setItem("student_name", data.name);
-    localStorage.setItem("student_phone", data.phone || "");
-    localStorage.setItem("session_token", data.sessionToken);
+    localStorage.setItem("student_roll", data.student.RollNo);
+    localStorage.setItem("student_name", data.student.Name);
+    localStorage.setItem("student_phone", data.student.Phone || "");
 
     redirect("dashboard.html");
 
@@ -66,7 +65,7 @@ async function login() {
 
 
 // ==========================
-// DASHBOARD LOAD
+// LOAD DASHBOARD
 // ==========================
 async function loadDashboard() {
 
@@ -74,7 +73,7 @@ async function loadDashboard() {
 
   const roll = localStorage.getItem("student_roll");
 
-  if (!roll || roll === "null") {
+  if (!roll) {
     return redirect("index.html");
   }
 
@@ -96,8 +95,6 @@ async function loadDashboard() {
 
     if (data.student.Courses?.length) {
       selectCourse(data.student.Courses[0]);
-    } else {
-      $("courseTabs").innerHTML = "<p>No registered course found.</p>";
     }
 
   } catch {
@@ -141,7 +138,6 @@ function selectCourse(course) {
 
   $("selectedCourseTitle").innerText = `${course} Dashboard`;
 
-  // Highlight active tab
   document.querySelectorAll(".course-btn").forEach(btn => {
     btn.classList.toggle("active-course", btn.innerText === course);
   });
@@ -161,7 +157,7 @@ function selectCourse(course) {
 
 
 // ==========================
-// FILTER HELPER
+// FILTER
 // ==========================
 function filterByCourse(data, course) {
   if (!data) return [];
@@ -268,49 +264,6 @@ function renderAnnouncements(list) {
 
 
 // ==========================
-// PASSWORD MODAL
-// ==========================
-function openPasswordModal() {
-  $("passwordModal").style.display = "flex";
-}
-
-function closePasswordModal() {
-  $("passwordModal").style.display = "none";
-}
-
-async function goToQuiz() {
-
-  const roll = localStorage.getItem("student_roll");
-  const name = localStorage.getItem("student_name");
-
-  if (!roll) {
-    alert("Session expired. Please login again.");
-    window.location.href = "index.html";
-    return;
-  }
-
-  try {
-    const url = `${API_URL}?action=generateToken&roll=${encodeURIComponent(roll)}`;
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (data.status !== "success") {
-      alert("Unable to open quiz.");
-      return;
-    }
-
-    const quizUrl =
-      `https://pramodsoni.in/Quiz/?roll=${encodeURIComponent(roll)}`
-      + `&token=${encodeURIComponent(data.token)}`
-      + `&name=${encodeURIComponent(name || "")}`;
-
-    window.location.href = quizUrl;
-
-  } catch (err) {
-    alert("Server error while opening quiz.");
-  }
-}
-// ==========================
 // CHANGE PASSWORD
 // ==========================
 async function changePassword() {
@@ -331,12 +284,6 @@ async function changePassword() {
     return setMessage(msg, "Passwords do not match.");
   }
 
-  if (newPass.length < 4) {
-    return setMessage(msg, "Min 4 characters required.");
-  }
-
-  setMessage(msg, "Updating...", "#555");
-
   try {
 
     const url = `${API_URL}?action=changePassword`
@@ -351,10 +298,9 @@ async function changePassword() {
       return setMessage(msg, data.message);
     }
 
-    setMessage(msg, "Updated. Please login again.", "green");
+    setMessage(msg, "Password updated. Login again.", "green");
 
     setTimeout(() => {
-      closePasswordModal();
       logout();
     }, 1500);
 
@@ -371,17 +317,6 @@ function logout() {
   localStorage.clear();
   redirect("index.html");
 }
-
-
-// ==========================
-// CLOSE MODAL ON OUTSIDE CLICK
-// ==========================
-window.onclick = function(e) {
-  const modal = $("passwordModal");
-  if (e.target === modal) {
-    modal.style.display = "none";
-  }
-};
 
 
 // ==========================
