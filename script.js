@@ -178,15 +178,24 @@ function renderMarks(list) {
 
   const m = list[0];
 
-  box.innerHTML = `
-    <table>
-      <tr><td>Quiz1</td><td>${m.Quiz1 || "-"}</td></tr>
-      <tr><td>Quiz2</td><td>${m.Quiz2 || "-"}</td></tr>
-      <tr><td>MidSem</td><td>${m.MidSem || "-"}</td></tr>
-      <tr><td>EndSem</td><td>${m.EndSem || "-"}</td></tr>
-      <tr><td>Total</td><td>${m.Total || "-"}</td></tr>
-    </table>
-  `;
+  let html = "<table>";
+
+  Object.keys(m).forEach(key => {
+
+    // ❌ Skip non-mark fields
+    if (key === "RollNo" || key === "Course") return;
+
+    html += `
+      <tr>
+        <td>${key}</td>
+        <td>${m[key] !== "" ? m[key] : "-"}</td>
+      </tr>
+    `;
+  });
+
+  html += "</table>";
+
+  box.innerHTML = html;
 }
 
 
