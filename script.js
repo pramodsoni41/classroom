@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbxnHdftuhMFVVsr56aXB7mas9PFb9SIeeKfl61j7G9FFQnORjaeI1BI0egasIVMrt_S/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxXHIW8rSuwDXTjN_E4S8tDkdzp7o2MSeum49Yu3B7BKSj5HxSf5c--SUSV6ep_VdNN/exec";
 
 let dashboardData = null;
 let selectedCourse = null;
@@ -218,32 +218,38 @@ function renderAnnouncements(announcements) {
 }
 
 async function changePassword() {
+
   const roll = localStorage.getItem("student_roll");
 
   const oldPass = document.getElementById("oldPass").value.trim();
   const newPass = document.getElementById("newPass").value.trim();
   const confirmPass = document.getElementById("confirmPass").value.trim();
+
   const msg = document.getElementById("passMsg");
 
   if (!oldPass || !newPass || !confirmPass) {
-    msg.innerText = "Please fill all password fields.";
+    msg.innerText = "Please fill all fields.";
     msg.style.color = "red";
     return;
   }
 
   if (newPass !== confirmPass) {
-    msg.innerText = "New password and confirm password do not match.";
+    msg.innerText = "Passwords do not match.";
     msg.style.color = "red";
     return;
   }
 
   if (newPass.length < 4) {
-    msg.innerText = "Password should be at least 4 characters.";
+    msg.innerText = "Password must be at least 4 characters.";
     msg.style.color = "red";
     return;
   }
 
+  msg.innerText = "Updating password...";
+  msg.style.color = "#555";
+
   try {
+
     const url =
       `${API_URL}?action=changePassword` +
       `&roll=${encodeURIComponent(roll)}` +
@@ -253,17 +259,23 @@ async function changePassword() {
     const res = await fetch(url);
     const data = await res.json();
 
-    msg.innerText = data.message;
-    msg.style.color = data.status === "success" ? "green" : "red";
-
     if (data.status === "success") {
-      document.getElementById("oldPass").value = "";
-      document.getElementById("newPass").value = "";
-      document.getElementById("confirmPass").value = "";
+
+      msg.innerText = "Password updated. Please login again.";
+      msg.style.color = "green";
+
+      // 🔴 IMPORTANT: FORCE LOGOUT AFTER 2 SECONDS
+      setTimeout(() => {
+        logout();
+      }, 2000);
+
+    } else {
+      msg.innerText = data.message;
+      msg.style.color = "red";
     }
 
   } catch (error) {
-    msg.innerText = "Unable to update password.";
+    msg.innerText = "Error updating password.";
     msg.style.color = "red";
   }
 }
