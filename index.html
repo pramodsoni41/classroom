@@ -9,23 +9,31 @@
 
 <body class="login-page">
 
-  <div class="login-card">
-    <h1>Student Portal</h1>
-    <p class="subtitle">Login to view notes, marks and attendance</p>
+<div class="login-card">
+  <h1>Student Portal</h1>
+  <p class="subtitle">Login to view notes, marks and attendance</p>
 
-    <input type="text" id="roll" placeholder="Enter Roll Number">
-    <input type="password" id="password" placeholder="Enter Password">
+  <input type="text" id="roll" placeholder="Enter Roll Number">
+  <input type="password" id="password" placeholder="Enter Password">
 
-	<button onclick="login()">Login</button>
+  <button onclick="login()">Login</button>
 
-	<div class="divider">OR</div>
+  <div class="divider">OR</div>
 
-	<button onclick="goToQuiz()" class="quiz-btn">
-	  Go to Quiz
-	</button>
+  <button onclick="showChangePassword()" class="quiz-btn">
+    Change Password
+  </button>
 
-	<p id="loginMessage"></p>
-  </div>
+  <p id="loginMessage"></p>
+</div>
+
+<!-- 🔹 Change Password Modal -->
+<div id="changeBox" style="display:none; margin-top:20px;">
+  <input type="password" id="oldPass" placeholder="Old Password">
+  <input type="password" id="newPass" placeholder="New Password">
+
+  <button onclick="changePassword()">Update Password</button>
+</div>
 
   <script src="script.js"></script>
 </body>

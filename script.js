@@ -35,7 +35,9 @@ async function login() {
     msg.style.color = "red";
   }
 }
-
+function showChangePassword() {
+  document.getElementById("changeBox").style.display = "block";
+}
 async function loadDashboard() {
   if (!window.location.pathname.includes("dashboard.html")) {
     return;
