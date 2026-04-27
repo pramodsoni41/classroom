@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbxXHIW8rSuwDXTjN_E4S8tDkdzp7o2MSeum49Yu3B7BKSj5HxSf5c--SUSV6ep_VdNN/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycby1hdLCMQhdxflq2LMmY5pEoKv3sfg0pRZDKqnls5szUFo9b98ExlyQuANDU03_7uoY/exec";
 
 let dashboardData = null;
 let selectedCourse = null;
