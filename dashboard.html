@@ -9,13 +9,22 @@
 
 <body>
 
-  <header class="topbar">
-    <div>
-      <h2>Student Dashboard</h2>
-      <p id="studentInfo">Loading...</p>
-    </div>
-    <button onclick="logout()" class="logout-btn">Logout</button>
-  </header>
+<header class="topbar">
+  <div>
+    <h2>Student Dashboard</h2>
+    <p id="studentInfo">Loading...</p>
+  </div>
+
+  <div class="header-actions">
+    <button onclick="openPasswordModal()" class="change-pass-btn">
+      Change Password
+    </button>
+
+    <button onclick="logout()" class="logout-btn">
+      Logout
+    </button>
+  </div>
+</header>
 
   <main class="container">
 
@@ -50,19 +59,28 @@
       <div id="announcements" class="grid"></div>
     </section>
 
-    <section class="section">
-      <h3>Change Password</h3>
-      <div class="card password-card">
-        <input type="password" id="oldPass" placeholder="Old Password">
-        <input type="password" id="newPass" placeholder="New Password">
-        <input type="password" id="confirmPass" placeholder="Confirm New Password">
-        <button onclick="changePassword()">Update Password</button>
-        <p id="passMsg"></p>
-      </div>
-    </section>
 
   </main>
 
   <script src="script.js"></script>
+  
+  <!-- 🔐 Password Modal -->
+<div id="passwordModal" class="modal">
+
+  <div class="modal-content">
+    <span class="close-btn" onclick="closePasswordModal()">&times;</span>
+
+    <h3>Change Password</h3>
+
+    <input type="password" id="oldPass" placeholder="Old Password">
+    <input type="password" id="newPass" placeholder="New Password">
+    <input type="password" id="confirmPass" placeholder="Confirm New Password">
+
+    <button onclick="changePassword()">Update Password</button>
+
+    <p id="passMsg"></p>
+  </div>
+
+</div>
 </body>
 </html>

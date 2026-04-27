@@ -207,7 +207,13 @@ function renderAnnouncements(announcements) {
     </div>
   `).join("");
 }
+function openPasswordModal() {
+  document.getElementById("passwordModal").style.display = "flex";
+}
 
+function closePasswordModal() {
+  document.getElementById("passwordModal").style.display = "none";
+}
 async function changePassword() {
 
   const roll = localStorage.getItem("student_roll");
@@ -256,9 +262,10 @@ async function changePassword() {
       msg.style.color = "green";
 
       // 🔴 IMPORTANT: FORCE LOGOUT AFTER 2 SECONDS
-      setTimeout(() => {
-        logout();
-      }, 2000);
+	setTimeout(() => {
+	  closePasswordModal();
+	  logout();
+	}, 1500);
 
     } else {
       msg.innerText = data.message;
