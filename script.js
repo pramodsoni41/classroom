@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbyzv-lKn3nuTs-qSLnHnGkTKeXsZKPaONkuBeqRWrfgEuBuO_mAKD-bgJZNl6fXZhdE/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwtn_Al5Sliwaoj6NM5eOfrnbdUcvpXQjohCPGeczVzB1_Rm6MkUXYA7_KHw8uSD0iQ/exec";
 
 let dashboardData = null;
 let selectedCourse = null;
@@ -146,8 +146,8 @@ function selectCourse(course) {
   const attendance = filterByCourse(dashboardData.attendance, course);
   const notes = filterByCourse(dashboardData.notes, course);
   const announcements = dashboardData.announcements.filter(a =>
-    !a.Course || String(a.Course).trim() === course
-  );
+  String(a.Course || "").trim().toUpperCase() === course.trim().toUpperCase()
+);
 
   renderMarks(marks);
   renderAttendance(attendance);
