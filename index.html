@@ -1,10 +1,41 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Student Login</title>
+  <title>Student Portal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style.css">
+
+  <style>
+    /* 🔹 Modal Styling */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      width: 300px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .close-btn {
+      float: right;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: bold;
+      color: #555;
+    }
+  </style>
 </head>
 
 <body class="login-page">
@@ -13,28 +44,58 @@
   <h1>Student Portal</h1>
   <p class="subtitle">Login to view notes, marks and attendance</p>
 
-  <input type="text" id="roll" placeholder="Enter Roll Number">
-  <input type="password" id="password" placeholder="Enter Password">
+  <input type="text" id="roll" placeholder="Enter Roll Number" required>
+  <input type="password" id="password" placeholder="Enter Password" required>
 
   <button onclick="login()">Login</button>
 
   <div class="divider">OR</div>
 
-  <button onclick="showChangePassword()" class="quiz-btn">
+  <button onclick="openModal()" class="quiz-btn">
     Change Password
   </button>
 
   <p id="loginMessage"></p>
 </div>
 
-<!-- 🔹 Change Password Modal -->
-<div id="changeBox" style="display:none; margin-top:20px;">
-  <input type="password" id="oldPass" placeholder="Old Password">
-  <input type="password" id="newPass" placeholder="New Password">
+<!-- 🔹 Proper Modal -->
+<div id="changeModal" class="modal">
+  <div class="modal-content">
 
-  <button onclick="changePassword()">Update Password</button>
+    <span class="close-btn" onclick="closeModal()">&times;</span>
+
+    <h3>Change Password</h3>
+
+    <input type="text" id="rollChange" placeholder="Roll Number">
+    <input type="password" id="oldPass" placeholder="Old Password">
+    <input type="password" id="newPass" placeholder="New Password">
+
+    <button onclick="changePassword()">Update Password</button>
+
+    <p id="changeMessage"></p>
+
+  </div>
 </div>
 
-  <script src="script.js"></script>
+<script src="script.js"></script>
+
+<script>
+  function openModal() {
+    document.getElementById("changeModal").style.display = "flex";
+  }
+
+  function closeModal() {
+    document.getElementById("changeModal").style.display = "none";
+  }
+
+  // Optional: close when clicking outside
+  window.onclick = function(e) {
+    let modal = document.getElementById("changeModal");
+    if (e.target === modal) {
+      modal.style.display = "none";
+    }
+  }
+</script>
+
 </body>
 </html>
