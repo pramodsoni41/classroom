@@ -172,3 +172,41 @@ td:first-child {
     width: 90%;
   }
 }
+
+.course-tabs {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.course-btn {
+  width: auto;
+  padding: 10px 18px;
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.course-btn:hover {
+  background: #cbd5e1;
+}
+
+.active-course {
+  background: #2563eb !important;
+  color: white !important;
+}
+
+.two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.password-card {
+  max-width: 420px;
+}
+
+@media (max-width: 700px) {
+  .two-column {
+    grid-template-columns: 1fr;
+  }
+}

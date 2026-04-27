@@ -20,23 +20,45 @@
   <main class="container">
 
     <section class="section">
-      <h3>Announcements</h3>
-      <div id="announcements" class="grid"></div>
+      <h3>Registered Courses</h3>
+      <div id="courseTabs" class="course-tabs"></div>
     </section>
 
     <section class="section">
-      <h3>Marks</h3>
-      <div id="marks" class="card"></div>
-    </section>
+      <h3 id="selectedCourseTitle">Course Dashboard</h3>
 
-    <section class="section">
-      <h3>Attendance</h3>
-      <div id="attendance" class="card"></div>
+      <div class="two-column">
+        <div>
+          <h3>Marks</h3>
+          <div id="marks" class="card"></div>
+        </div>
+
+        <div>
+          <h3>Attendance</h3>
+          <div id="attendance" class="card"></div>
+        </div>
+      </div>
     </section>
 
     <section class="section">
       <h3>Class Notes</h3>
       <div id="notes" class="grid"></div>
+    </section>
+
+    <section class="section">
+      <h3>Announcements</h3>
+      <div id="announcements" class="grid"></div>
+    </section>
+
+    <section class="section">
+      <h3>Change Password</h3>
+      <div class="card password-card">
+        <input type="password" id="oldPass" placeholder="Old Password">
+        <input type="password" id="newPass" placeholder="New Password">
+        <input type="password" id="confirmPass" placeholder="Confirm New Password">
+        <button onclick="changePassword()">Update Password</button>
+        <p id="passMsg"></p>
+      </div>
     </section>
 
   </main>

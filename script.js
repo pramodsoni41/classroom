@@ -1,4 +1,7 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbwHXMjnCx7YGP9Wbv1jyrdxrVs-zAXc53WD9oGylgAvlbEf-zUJRrO3kQhSbFE9Z8a1/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxnHdftuhMFVVsr56aXB7mas9PFb9SIeeKfl61j7G9FFQnORjaeI1BI0egasIVMrt_S/exec";
+
+let dashboardData = null;
+let selectedCourse = null;
 
 async function login() {
   const roll = document.getElementById("roll").value.trim();
@@ -56,11 +59,16 @@ async function loadDashboard() {
       return;
     }
 
+    dashboardData = data;
+
     renderStudent(data.student);
-    renderMarks(data.marks);
-    renderAttendance(data.attendance);
-    renderNotes(data.notes);
-    renderAnnouncements(data.announcements);
+    renderCourseTabs(data.student.Courses);
+
+    if (data.student.Courses.length > 0) {
+      selectCourse(data.student.Courses[0]);
+    } else {
+      document.getElementById("courseTabs").innerHTML = "<p>No registered course found.</p>";
+    }
 
   } catch (error) {
     document.body.innerHTML = "<h3 style='padding:20px;'>Unable to load dashboard.</h3>";
@@ -69,40 +77,116 @@ async function loadDashboard() {
 
 function renderStudent(student) {
   document.getElementById("studentInfo").innerText =
-    `${student.Name} | ${student.RollNo} | ${student.Course}`;
+    `${student.Name} | ${student.RollNo}`;
 }
 
-function renderMarks(marks) {
-  let html = "<table>";
+function renderCourseTabs(courses) {
+  const box = document.getElementById("courseTabs");
 
-  for (let key in marks) {
-    if (key !== "RollNo") {
-      html += `
-        <tr>
-          <td>${key}</td>
-          <td>${marks[key]}</td>
-        </tr>
-      `;
+  box.innerHTML = courses.map(course => `
+    <button class="course-btn" onclick="selectCourse('${course}')">${course}</button>
+  `).join("");
+}
+
+function selectCourse(course) {
+  selectedCourse = course;
+
+  document.getElementById("selectedCourseTitle").innerText = `${course} Dashboard`;
+
+  document.querySelectorAll(".course-btn").forEach(btn => {
+    btn.classList.remove("active-course");
+    if (btn.innerText === course) {
+      btn.classList.add("active-course");
     }
+  });
+
+  const marks = dashboardData.marks.filter(row =>
+    String(row.Course).trim() === course
+  );
+
+  const attendance = dashboardData.attendance.filter(row =>
+    String(row.Course).trim() === course
+  );
+
+  const notes = dashboardData.notes.filter(row =>
+    String(row.Course).trim() === course
+  );
+
+  const announcements = dashboardData.announcements.filter(row =>
+    !row.Course || String(row.Course).trim() === course
+  );
+
+  renderMarks(marks);
+  renderAttendance(attendance);
+  renderNotes(notes);
+  renderAnnouncements(announcements);
+}
+
+function renderMarks(marksList) {
+  const box = document.getElementById("marks");
+
+  if (!marksList || marksList.length === 0) {
+    box.innerHTML = "<p>No marks uploaded for this course.</p>";
+    return;
   }
 
-  html += "</table>";
-  document.getElementById("marks").innerHTML = html;
+  let html = "";
+
+  marksList.forEach(marks => {
+    html += "<table>";
+
+    for (let key in marks) {
+      if (key !== "RollNo" && key !== "Course") {
+        html += `
+          <tr>
+            <td>${key}</td>
+            <td>${marks[key]}</td>
+          </tr>
+        `;
+      }
+    }
+
+    html += "</table>";
+  });
+
+  box.innerHTML = html;
 }
 
-function renderAttendance(attendance) {
-  document.getElementById("attendance").innerHTML = `
-    <p><b>Total Classes:</b> ${attendance.TotalClasses || "-"}</p>
-    <p><b>Present:</b> ${attendance.Present || "-"}</p>
-    <p><b>Attendance:</b> ${attendance.Percentage || "-"}%</p>
-  `;
+function renderAttendance(attendanceList) {
+  const box = document.getElementById("attendance");
+
+  if (!attendanceList || attendanceList.length === 0) {
+    box.innerHTML = "<p>No attendance uploaded for this course.</p>";
+    return;
+  }
+
+  let html = "";
+
+  attendanceList.forEach(attendance => {
+    html += "<table>";
+
+    for (let key in attendance) {
+      if (key !== "RollNo" && key !== "Course") {
+        html += `
+          <tr>
+            <td>${key}</td>
+            <td>${attendance[key]}</td>
+          </tr>
+        `;
+      }
+    }
+
+    html += "</table>";
+  });
+
+  box.innerHTML = html;
 }
 
 function renderNotes(notes) {
   const box = document.getElementById("notes");
 
   if (!notes || notes.length === 0) {
-    box.innerHTML = "<p>No notes uploaded.</p>";
+    box.innerHTML = "<p>No notes uploaded for this course.</p>";
     return;
   }
 
@@ -120,7 +204,7 @@ function renderAnnouncements(announcements) {
   const box = document.getElementById("announcements");
 
   if (!announcements || announcements.length === 0) {
-    box.innerHTML = "<p>No announcements.</p>";
+    box.innerHTML = "<p>No announcements for this course.</p>";
     return;
   }
 
@@ -131,6 +215,57 @@ function renderAnnouncements(announcements) {
       <p class="date">${item.Date || ""}</p>
     </div>
   `).join("");
+}
+
+async function changePassword() {
+  const roll = localStorage.getItem("student_roll");
+
+  const oldPass = document.getElementById("oldPass").value.trim();
+  const newPass = document.getElementById("newPass").value.trim();
+  const confirmPass = document.getElementById("confirmPass").value.trim();
+  const msg = document.getElementById("passMsg");
+
+  if (!oldPass || !newPass || !confirmPass) {
+    msg.innerText = "Please fill all password fields.";
+    msg.style.color = "red";
+    return;
+  }
+
+  if (newPass !== confirmPass) {
+    msg.innerText = "New password and confirm password do not match.";
+    msg.style.color = "red";
+    return;
+  }
+
+  if (newPass.length < 4) {
+    msg.innerText = "Password should be at least 4 characters.";
+    msg.style.color = "red";
+    return;
+  }
+
+  try {
+    const url =
+      `${API_URL}?action=changePassword` +
+      `&roll=${encodeURIComponent(roll)}` +
+      `&oldPassword=${encodeURIComponent(oldPass)}` +
+      `&newPassword=${encodeURIComponent(newPass)}`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    msg.innerText = data.message;
+    msg.style.color = data.status === "success" ? "green" : "red";
+
+    if (data.status === "success") {
+      document.getElementById("oldPass").value = "";
+      document.getElementById("newPass").value = "";
+      document.getElementById("confirmPass").value = "";
+    }
+
+  } catch (error) {
+    msg.innerText = "Unable to update password.";
+    msg.style.color = "red";
+  }
 }
 
 function logout() {
