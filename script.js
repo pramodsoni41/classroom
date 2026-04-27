@@ -55,7 +55,7 @@ async function login() {
     localStorage.setItem("student_roll", data.student.RollNo);
     localStorage.setItem("student_name", data.student.Name);
     localStorage.setItem("student_phone", data.student.Phone || "");
-
+localStorage.setItem("student_pass", password);   // ✅ ADD THIS
     redirect("dashboard.html");
 
   } catch (err) {
