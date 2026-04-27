@@ -280,7 +280,22 @@ function closePasswordModal() {
   $("passwordModal").style.display = "none";
 }
 
+function goToQuiz() {
 
+  const roll = localStorage.getItem("roll");
+  const name = localStorage.getItem("name");
+
+  if (!roll) {
+    alert("Session expired. Please login again.");
+    window.location.href = "index.html";
+    return;
+  }
+
+  // Pass data via URL
+  const url = `quiz.html?roll=${encodeURIComponent(roll)}&name=${encodeURIComponent(name)}`;
+
+  window.location.href = url;
+}
 // ==========================
 // CHANGE PASSWORD
 // ==========================
@@ -353,22 +368,7 @@ window.onclick = function(e) {
     modal.style.display = "none";
   }
 };
-function goToQuiz() {
 
-  const roll = localStorage.getItem("roll");
-  const name = localStorage.getItem("name");
-
-  if (!roll) {
-    alert("Session expired. Please login again.");
-    window.location.href = "index.html";
-    return;
-  }
-
-  // Pass data via URL
-  const url = `quiz.html?roll=${encodeURIComponent(roll)}&name=${encodeURIComponent(name)}`;
-
-  window.location.href = url;
-}
 
 // ==========================
 // INIT
