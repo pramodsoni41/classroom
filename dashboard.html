@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Student Dashboard</title>
@@ -7,12 +7,12 @@
   <link rel="stylesheet" href="style.css">
 </head>
 
-<body>
+<body onload="loadDashboard()">
 
 <header class="topbar">
   <div>
     <h2>Student Dashboard</h2>
-    <p id="studentInfo">Loading...</p>
+    <p id="studentInfo">Loading student details...</p>
   </div>
 
   <div class="header-actions">
@@ -26,48 +26,57 @@
   </div>
 </header>
 
-  <main class="container">
+<main class="container">
 
-    <section class="section">
-      <h3>Registered Courses</h3>
-      <div id="courseTabs" class="course-tabs"></div>
-    </section>
+  <section class="section">
+    <h3>Registered Courses</h3>
+    <div id="courseTabs" class="course-tabs">
+      <p>Loading courses...</p>
+    </div>
+  </section>
 
-    <section class="section">
-      <h3 id="selectedCourseTitle">Course Dashboard</h3>
+  <section class="section">
+    <h3 id="selectedCourseTitle">Course Dashboard</h3>
 
-      <div class="two-column">
-        <div>
-          <h3>Marks</h3>
-          <div id="marks" class="card"></div>
-        </div>
-
-        <div>
-          <h3>Attendance</h3>
-          <div id="attendance" class="card"></div>
+    <div class="two-column">
+      <div>
+        <h3>Marks</h3>
+        <div id="marks" class="card">
+          <p>Loading marks...</p>
         </div>
       </div>
-    </section>
 
-    <section class="section">
-      <h3>Class Notes</h3>
-      <div id="notes" class="grid"></div>
-    </section>
+      <div>
+        <h3>Attendance</h3>
+        <div id="attendance" class="card">
+          <p>Loading attendance...</p>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    <section class="section">
-      <h3>Announcements</h3>
-      <div id="announcements" class="grid"></div>
-    </section>
+  <section class="section">
+    <h3>Class Notes</h3>
+    <div id="notes" class="grid">
+      <p>Loading notes...</p>
+    </div>
+  </section>
 
+  <section class="section">
+    <h3>Announcements</h3>
+    <div id="announcements" class="grid">
+      <p>Loading announcements...</p>
+    </div>
+  </section>
 
-  </main>
+</main>
 
-  <script src="script.js"></script>
-  
-  <!-- 🔐 Password Modal -->
+<script src="script.js"></script>
+
+<!-- 🔐 Password Modal -->
 <div id="passwordModal" class="modal">
-
   <div class="modal-content">
+
     <span class="close-btn" onclick="closePasswordModal()">&times;</span>
 
     <h3>Change Password</h3>
@@ -79,8 +88,9 @@
     <button onclick="changePassword()">Update Password</button>
 
     <p id="passMsg"></p>
-  </div>
 
+  </div>
 </div>
+
 </body>
 </html>

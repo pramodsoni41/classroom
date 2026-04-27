@@ -1,130 +1,158 @@
+// ==========================
+// CONFIG
+// ==========================
 const API_URL = "https://script.google.com/macros/s/AKfycby1hdLCMQhdxflq2LMmY5pEoKv3sfg0pRZDKqnls5szUFo9b98ExlyQuANDU03_7uoY/exec";
 
 let dashboardData = null;
 let selectedCourse = null;
 
+
+// ==========================
+// HELPERS
+// ==========================
+function $(id) {
+  return document.getElementById(id);
+}
+
+function setMessage(el, text, color = "red") {
+  if (!el) return;
+  el.innerText = text;
+  el.style.color = color;
+}
+
+function redirect(page) {
+  window.location.href = page;
+}
+
+
+// ==========================
+// LOGIN
+// ==========================
 async function login() {
-  const roll = document.getElementById("roll").value.trim();
-  const password = document.getElementById("password").value.trim();
-  const msg = document.getElementById("loginMessage");
+
+  const roll = $("roll")?.value.trim();
+  const password = $("password")?.value.trim();
+  const msg = $("loginMessage");
 
   if (!roll || !password) {
-    msg.innerText = "Enter roll and password.";
-    msg.style.color = "red";
-    return;
+    return setMessage(msg, "Enter roll and password.");
   }
 
-  msg.innerText = "Checking...";
-  msg.style.color = "#555";
+  setMessage(msg, "Checking...", "#555");
 
   try {
+
     const url = `${API_URL}?action=login&roll=${encodeURIComponent(roll)}&password=${encodeURIComponent(password)}`;
     const res = await fetch(url);
     const data = await res.json();
 
-    if (data.status === "success") {
-
-      localStorage.setItem("student_roll", roll);
-      localStorage.setItem("student_name", data.student.Name);
-
-      // 🔥 OPTIONAL: Force password change if default
-      if (roll === password) {
-        alert("Please change your password");
-      }
-
-      window.location.href = "dashboard.html";
-
-    } else {
-      msg.innerText = data.message;
-      msg.style.color = "red";
+    if (data.status !== "success") {
+      return setMessage(msg, data.message || "Login failed.");
     }
 
-  } catch {
-    msg.innerText = "Server error.";
-    msg.style.color = "red";
+    // Save session
+    localStorage.setItem("student_roll", roll);
+    localStorage.setItem("student_name", data.student.Name);
+
+    // Force password change if default
+    if (roll === password) {
+      alert("Please change your password.");
+    }
+
+    redirect("dashboard.html");
+
+  } catch (err) {
+    setMessage(msg, "Server error. Try again.");
   }
 }
-function showChangePassword() {
-  document.getElementById("changeBox").style.display = "block";
-}
+
+
+// ==========================
+// DASHBOARD LOAD
+// ==========================
 async function loadDashboard() {
-  if (!window.location.pathname.includes("dashboard.html")) {
-    return;
-  }
+
+  if (!window.location.pathname.includes("dashboard.html")) return;
 
   const roll = localStorage.getItem("student_roll");
 
-  if (!roll) {
-    window.location.href = "index.html";
-    return;
+  if (!roll || roll === "null") {
+    return redirect("index.html");
   }
 
   try {
+
     const url = `${API_URL}?action=dashboard&roll=${encodeURIComponent(roll)}`;
     const res = await fetch(url);
     const data = await res.json();
 
     if (data.status !== "success") {
       alert(data.message);
-      logout();
-      return;
+      return logout();
     }
 
     dashboardData = data;
 
     renderStudent(data.student);
-    renderCourseTabs(data.student.Courses);
+    renderCourses(data.student.Courses);
 
-    if (data.student.Courses.length > 0) {
+    if (data.student.Courses?.length) {
       selectCourse(data.student.Courses[0]);
     } else {
-      document.getElementById("courseTabs").innerHTML = "<p>No registered course found.</p>";
+      $("courseTabs").innerHTML = "<p>No registered course found.</p>";
     }
 
-  } catch (error) {
+  } catch {
     document.body.innerHTML = "<h3 style='padding:20px;'>Unable to load dashboard.</h3>";
   }
 }
 
+
+// ==========================
+// RENDER STUDENT
+// ==========================
 function renderStudent(student) {
-  document.getElementById("studentInfo").innerText =
-    `${student.Name} | ${student.RollNo}`;
+  $("studentInfo").innerText = `${student.Name} | ${student.RollNo}`;
 }
 
-function renderCourseTabs(courses) {
-  const box = document.getElementById("courseTabs");
 
-  box.innerHTML = courses.map(course => `
-    <button class="course-btn" onclick="selectCourse('${course}')">${course}</button>
-  `).join("");
+// ==========================
+// COURSES
+// ==========================
+function renderCourses(courses) {
+
+  const box = $("courseTabs");
+
+  if (!courses || courses.length === 0) {
+    box.innerHTML = "<p>No courses found.</p>";
+    return;
+  }
+
+  box.innerHTML = courses.map(c =>
+    `<button class="course-btn" onclick="selectCourse('${c}')">${c}</button>`
+  ).join("");
 }
 
+
+// ==========================
+// SELECT COURSE
+// ==========================
 function selectCourse(course) {
+
   selectedCourse = course;
 
-  document.getElementById("selectedCourseTitle").innerText = `${course} Dashboard`;
+  $("selectedCourseTitle").innerText = `${course} Dashboard`;
 
+  // Highlight active tab
   document.querySelectorAll(".course-btn").forEach(btn => {
-    btn.classList.remove("active-course");
-    if (btn.innerText === course) {
-      btn.classList.add("active-course");
-    }
+    btn.classList.toggle("active-course", btn.innerText === course);
   });
 
-  const marks = dashboardData.marks.filter(row =>
-    String(row.Course).trim() === course
-  );
-
-  const attendance = dashboardData.attendance.filter(row =>
-    String(row.Course).trim() === course
-  );
-
-  const notes = dashboardData.notes.filter(row =>
-    String(row.Course).trim() === course
-  );
-
-  const announcements = dashboardData.announcements.filter(row =>
-    !row.Course || String(row.Course).trim() === course
+  const marks = filterByCourse(dashboardData.marks, course);
+  const attendance = filterByCourse(dashboardData.attendance, course);
+  const notes = filterByCourse(dashboardData.notes, course);
+  const announcements = dashboardData.announcements.filter(a =>
+    !a.Course || String(a.Course).trim() === course
   );
 
   renderMarks(marks);
@@ -133,17 +161,30 @@ function selectCourse(course) {
   renderAnnouncements(announcements);
 }
 
-function renderMarks(marksList) {
 
-  if (!marksList || marksList.length === 0) {
-    document.getElementById("marks").innerHTML =
-      "<p>No marks uploaded for this course.</p>";
-    return;
+// ==========================
+// FILTER HELPER
+// ==========================
+function filterByCourse(data, course) {
+  if (!data) return [];
+  return data.filter(row => String(row.Course).trim() === course);
+}
+
+
+// ==========================
+// MARKS
+// ==========================
+function renderMarks(list) {
+
+  const box = $("marks");
+
+  if (!list.length) {
+    return box.innerHTML = "<p>No marks uploaded.</p>";
   }
 
-  const m = marksList[0]; // only one row per course
+  const m = list[0];
 
-  document.getElementById("marks").innerHTML = `
+  box.innerHTML = `
     <table>
       <tr><td>Quiz1</td><td>${m.Quiz1 || "-"}</td></tr>
       <tr><td>Quiz2</td><td>${m.Quiz2 || "-"}</td></tr>
@@ -154,29 +195,29 @@ function renderMarks(marksList) {
   `;
 }
 
-function renderAttendance(attendanceList) {
-  const box = document.getElementById("attendance");
 
-  if (!attendanceList || attendanceList.length === 0) {
-    box.innerHTML = "<p>No attendance uploaded for this course.</p>";
-    return;
+// ==========================
+// ATTENDANCE
+// ==========================
+function renderAttendance(list) {
+
+  const box = $("attendance");
+
+  if (!list.length) {
+    return box.innerHTML = "<p>No attendance uploaded.</p>";
   }
 
   let html = "";
 
-  attendanceList.forEach(attendance => {
+  list.forEach(a => {
+
     html += "<table>";
 
-    for (let key in attendance) {
+    Object.keys(a).forEach(key => {
       if (key !== "RollNo" && key !== "Course") {
-        html += `
-          <tr>
-            <td>${key}</td>
-            <td>${attendance[key]}</td>
-          </tr>
-        `;
+        html += `<tr><td>${key}</td><td>${a[key]}</td></tr>`;
       }
-    }
+    });
 
     html += "</table>";
   });
@@ -184,120 +225,137 @@ function renderAttendance(attendanceList) {
   box.innerHTML = html;
 }
 
-function renderNotes(notes) {
-  const box = document.getElementById("notes");
 
-  if (!notes || notes.length === 0) {
-    box.innerHTML = "<p>No notes uploaded for this course.</p>";
-    return;
+// ==========================
+// NOTES
+// ==========================
+function renderNotes(list) {
+
+  const box = $("notes");
+
+  if (!list.length) {
+    return box.innerHTML = "<p>No notes uploaded.</p>";
   }
 
-  box.innerHTML = notes.map(note => `
+  box.innerHTML = list.map(n => `
     <div class="card">
-      <h4>${note.Title}</h4>
-      <p>${note.Description || ""}</p>
-      <p class="date">${note.Date || ""}</p>
-      <a href="${note.Link}" target="_blank">Open Notes</a>
+      <h4>${n.Title}</h4>
+      <p>${n.Description || ""}</p>
+      <p class="date">${n.Date || ""}</p>
+      <a href="${n.Link}" target="_blank">Open Notes</a>
     </div>
   `).join("");
 }
 
-function renderAnnouncements(announcements) {
-  const box = document.getElementById("announcements");
 
-  if (!announcements || announcements.length === 0) {
-    box.innerHTML = "<p>No announcements for this course.</p>";
-    return;
+// ==========================
+// ANNOUNCEMENTS
+// ==========================
+function renderAnnouncements(list) {
+
+  const box = $("announcements");
+
+  if (!list.length) {
+    return box.innerHTML = "<p>No announcements.</p>";
   }
 
-  box.innerHTML = announcements.map(item => `
+  box.innerHTML = list.map(a => `
     <div class="card">
-      <h4>${item.Title}</h4>
-      <p>${item.Message}</p>
-      <p class="date">${item.Date || ""}</p>
+      <h4>${a.Title}</h4>
+      <p>${a.Message}</p>
+      <p class="date">${a.Date || ""}</p>
     </div>
   `).join("");
 }
+
+
+// ==========================
+// PASSWORD MODAL
+// ==========================
 function openPasswordModal() {
-  document.getElementById("passwordModal").style.display = "flex";
+  $("passwordModal").style.display = "flex";
 }
 
 function closePasswordModal() {
-  document.getElementById("passwordModal").style.display = "none";
+  $("passwordModal").style.display = "none";
 }
+
+
+// ==========================
+// CHANGE PASSWORD
+// ==========================
 async function changePassword() {
 
   const roll = localStorage.getItem("student_roll");
 
-  const oldPass = document.getElementById("oldPass").value.trim();
-  const newPass = document.getElementById("newPass").value.trim();
-  const confirmPass = document.getElementById("confirmPass").value.trim();
+  const oldPass = $("oldPass").value.trim();
+  const newPass = $("newPass").value.trim();
+  const confirmPass = $("confirmPass").value.trim();
 
-  const msg = document.getElementById("passMsg");
+  const msg = $("passMsg");
 
   if (!oldPass || !newPass || !confirmPass) {
-    msg.innerText = "Please fill all fields.";
-    msg.style.color = "red";
-    return;
+    return setMessage(msg, "Fill all fields.");
   }
 
   if (newPass !== confirmPass) {
-    msg.innerText = "Passwords do not match.";
-    msg.style.color = "red";
-    return;
+    return setMessage(msg, "Passwords do not match.");
   }
 
   if (newPass.length < 4) {
-    msg.innerText = "Password must be at least 4 characters.";
-    msg.style.color = "red";
-    return;
+    return setMessage(msg, "Min 4 characters required.");
   }
 
-  msg.innerText = "Updating password...";
-  msg.style.color = "#555";
+  setMessage(msg, "Updating...", "#555");
 
   try {
 
-    const url =
-      `${API_URL}?action=changePassword` +
-      `&roll=${encodeURIComponent(roll)}` +
-      `&oldPassword=${encodeURIComponent(oldPass)}` +
-      `&newPassword=${encodeURIComponent(newPass)}`;
+    const url = `${API_URL}?action=changePassword`
+      + `&roll=${encodeURIComponent(roll)}`
+      + `&oldPassword=${encodeURIComponent(oldPass)}`
+      + `&newPassword=${encodeURIComponent(newPass)}`;
 
     const res = await fetch(url);
     const data = await res.json();
 
-    if (data.status === "success") {
-
-      msg.innerText = "Password updated. Please login again.";
-      msg.style.color = "green";
-
-      // 🔴 IMPORTANT: FORCE LOGOUT AFTER 2 SECONDS
-	setTimeout(() => {
-	  closePasswordModal();
-	  logout();
-	}, 1500);
-
-    } else {
-      msg.innerText = data.message;
-      msg.style.color = "red";
+    if (data.status !== "success") {
+      return setMessage(msg, data.message);
     }
 
-  } catch (error) {
-    msg.innerText = "Error updating password.";
-    msg.style.color = "red";
+    setMessage(msg, "Updated. Please login again.", "green");
+
+    setTimeout(() => {
+      closePasswordModal();
+      logout();
+    }, 1500);
+
+  } catch {
+    setMessage(msg, "Error updating password.");
   }
-}
-window.onclick = function(event) {
-  const modal = document.getElementById("passwordModal");
-  if (event.target === modal) {
-    modal.style.display = "none";
-  }
-}
-function logout() {
-  localStorage.removeItem("student_roll");
-  localStorage.removeItem("student_name");
-  window.location.href = "index.html";
 }
 
+
+// ==========================
+// LOGOUT
+// ==========================
+function logout() {
+  localStorage.clear();
+  redirect("index.html");
+}
+
+
+// ==========================
+// CLOSE MODAL ON OUTSIDE CLICK
+// ==========================
+window.onclick = function(e) {
+  const modal = $("passwordModal");
+  if (e.target === modal) {
+    modal.style.display = "none";
+  }
+};
+
+
+// ==========================
+// INIT
+// ==========================
 loadDashboard();
