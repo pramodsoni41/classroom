@@ -53,7 +53,7 @@ async function login() {
     // Save session
     localStorage.setItem("student_roll", roll);
     localStorage.setItem("student_name", data.student.Name);
-
+	localStorage.setItem("student_phone", data.student.Phone || "");
     // Force password change if default
     if (roll === password) {
       alert("Please change your password.");
