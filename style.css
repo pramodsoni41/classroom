@@ -231,27 +231,34 @@ td:first-child {
 
 /* Modal background */
 .modal {
-  display: none;
-  position: fixed;
+  display: none; /* hidden by default */
+
+  position: fixed;   /* 🔴 THIS IS KEY */
   z-index: 1000;
-  left: 0;
+
   top: 0;
+  left: 0;
+
   width: 100%;
   height: 100%;
+
   background: rgba(0,0,0,0.5);
 
+  /* 🔴 CENTERING */
   justify-content: center;
   align-items: center;
 }
 
-/* Modal box */
 .modal-content {
   background: white;
   padding: 25px;
   border-radius: 12px;
   width: 320px;
-  text-align: center;
+
   position: relative;
+
+  /* optional */
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
 }
 
 /* Close button */

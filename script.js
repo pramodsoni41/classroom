@@ -277,7 +277,12 @@ async function changePassword() {
     msg.style.color = "red";
   }
 }
-
+window.onclick = function(event) {
+  const modal = document.getElementById("passwordModal");
+  if (event.target === modal) {
+    modal.style.display = "none";
+  }
+}
 function logout() {
   localStorage.removeItem("student_roll");
   localStorage.removeItem("student_name");
