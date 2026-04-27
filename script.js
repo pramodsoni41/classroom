@@ -291,8 +291,9 @@ function goToQuiz() {
     return;
   }
 
-  // Simple redirect (no need to pass URL params)
-  window.location.href = "https://pramodsoni41.github.io/Quiz/";
+  const url = `https://pramodsoni41.github.io/Quiz/?roll=${encodeURIComponent(roll)}&name=${encodeURIComponent(name)}`;
+
+  window.location.href = url;
 }
 // ==========================
 // CHANGE PASSWORD
