@@ -288,5 +288,16 @@ function logout() {
   localStorage.removeItem("student_name");
   window.location.href = "index.html";
 }
+function goToQuiz() {
 
+  const roll = document.getElementById("roll").value.trim();
+
+  // 🔴 If you want to pass roll number
+  if (roll) {
+    window.location.href = `quiz.html?roll=${encodeURIComponent(roll)}`;
+  } else {
+    // 🔴 Or open quiz normally
+    window.location.href = "https://pramodsoni41.github.io/Quiz/";
+  }
+}
 loadDashboard();

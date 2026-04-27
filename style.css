@@ -276,3 +276,18 @@ td:first-child {
   margin: 8px 0;
   padding: 10px;
 }
+
+.divider {
+  margin: 12px 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.quiz-btn {
+  background: #10b981;
+  margin-top: 5px;
+}
+
+.quiz-btn:hover {
+  background: #059669;
+}
