@@ -282,8 +282,8 @@ function closePasswordModal() {
 
 function goToQuiz() {
 
-  const roll = localStorage.getItem("roll");
-  const name = localStorage.getItem("name");
+  const roll = localStorage.getItem("student_roll");
+  const name = localStorage.getItem("student_name");
 
   if (!roll) {
     alert("Session expired. Please login again.");
@@ -291,10 +291,8 @@ function goToQuiz() {
     return;
   }
 
-  // Pass data via URL
-  const url = `quiz.html?roll=${encodeURIComponent(roll)}&name=${encodeURIComponent(name)}`;
-
-  window.location.href = url;
+  // Simple redirect (no need to pass URL params)
+  window.location.href = "quiz.html";
 }
 // ==========================
 // CHANGE PASSWORD
