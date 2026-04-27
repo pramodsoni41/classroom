@@ -1,4 +1,4 @@
-const API_URL = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
+const API_URL = "https://script.google.com/macros/s/AKfycbwHXMjnCx7YGP9Wbv1jyrdxrVs-zAXc53WD9oGylgAvlbEf-zUJRrO3kQhSbFE9Z8a1/exec";
 
 async function login() {
   const roll = document.getElementById("roll").value.trim();
