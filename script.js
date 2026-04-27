@@ -271,11 +271,7 @@ async function goToQuiz() {
   const password = localStorage.getItem("student_pass");
   const phone = localStorage.getItem("student_phone");
 
-  if (!roll || !password) {
-    alert("Session expired. Please login again.");
-    window.location.href = "index.html";
-    return;
-  }
+
 
   // Open new tab directly (no popup)
   const newTab = window.open("", "_blank");
