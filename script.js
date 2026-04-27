@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbxw1m9FyxuAnDziakgPTvXqo9RT0P4bq8g_c-RN3rgDnstqIe0r-_fI6fg8mwU9w-7W/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyzv-lKn3nuTs-qSLnHnGkTKeXsZKPaONkuBeqRWrfgEuBuO_mAKD-bgJZNl6fXZhdE/exec";
 
 let dashboardData = null;
 let selectedCourse = null;
@@ -253,13 +253,14 @@ function renderAnnouncements(list) {
     return box.innerHTML = "<p>No announcements.</p>";
   }
 
-  box.innerHTML = list.map(a => `
-    <div class="card">
-      <h4>${a.Title}</h4>
-      <p>${a.Message}</p>
-      <p class="date">${a.Date || ""}</p>
-    </div>
-  `).join("");
+box.innerHTML = list.map(a => `
+  <div class="card">
+    <h4>${a.Announcement || "-"}</h4>
+    <p>${a.Description || ""}</p>
+    ${a.Date ? `<p class="date">${new Date(a.Date).toLocaleDateString('en-IN')}</p>` : ""}
+    ${a.Link ? `<a href="${a.Link}" target="_blank">Open</a>` : ""}
+  </div>
+`).join("");
 }
 // ==========================
 // QUIZ BUTTON (WORKING VERSION)
