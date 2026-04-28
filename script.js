@@ -376,11 +376,19 @@ async function changePassword() {
 
   const roll = localStorage.getItem("student_roll");
 
-  const oldPass = $("oldPass").value.trim();
-  const newPass = $("newPass").value.trim();
-  const confirmPass = $("confirmPass").value.trim();
-
+  const oldPassEl = $("oldPass");
+  const newPassEl = $("newPass");
+  const confirmPassEl = $("confirmPass");
   const msg = $("passMsg");
+
+  if (!oldPassEl || !newPassEl || !confirmPassEl || !msg) {
+    alert("Password modal fields not found.");
+    return;
+  }
+
+  const oldPass = oldPassEl.value.trim();
+  const newPass = newPassEl.value.trim();
+  const confirmPass = confirmPassEl.value.trim();
 
   if (!oldPass || !newPass || !confirmPass) {
     return setMessage(msg, "Fill all fields.");
@@ -404,18 +412,36 @@ async function changePassword() {
       return setMessage(msg, data.message);
     }
 
-    setMessage(msg, "Password updated. Login again.", "green");
+setMessage(msg, "Password updated. Login again.", "green");
 
-    setTimeout(() => {
-      logout();
-    }, 1500);
+$("oldPass").value = "";
+$("newPass").value = "";
+$("confirmPass").value = "";
+
+closePasswordModal();
+
+setTimeout(() => {
+  logout();
+}, 1500);
 
   } catch {
     setMessage(msg, "Error updating password.");
   }
 }
 
+function openPasswordModal() {
+  const modal = document.getElementById("passwordModal");
+  if (modal) {
+    modal.style.display = "flex";
+  }
+}
 
+function closePasswordModal() {
+  const modal = document.getElementById("passwordModal");
+  if (modal) {
+    modal.style.display = "none";
+  }
+}
 // ==========================
 // LOGOUT
 // ==========================
@@ -436,4 +462,3 @@ function logout() {
 // ==========================
 // INIT
 // ==========================
-loadDashboard();
