@@ -378,36 +378,39 @@ function submitStudentMessage() {
     return;
   }
 
-  const student = JSON.parse(localStorage.getItem("student"));
+  // Use correct localStorage values
+  const roll = localStorage.getItem("student_roll");
+  const name = localStorage.getItem("student_name");
 
-  if (!student || !student.roll) {
+  if (!roll) {
     status.innerText = "Student information not found.";
     status.style.color = "red";
     return;
   }
 
-  fetchJSONP(
-    GOOGLE_SCRIPT_URL +
-    "?action=submitMessage" +
-    "&roll=" + encodeURIComponent(student.roll) +
-    "&name=" + encodeURIComponent(student.name || "") +
-    "&message=" + encodeURIComponent(msg)
-  )
-  .then(res => {
-    if (res.status === "success") {
-      status.innerText = "Message submitted successfully.";
-      status.style.color = "green";
-      document.getElementById("studentMessage").value = "";
-    } else {
-      status.innerText = res.message || "Failed to submit message.";
+  const url =
+    `${API_URL}?action=submitMessage`
+    + `&roll=${encodeURIComponent(roll)}`
+    + `&name=${encodeURIComponent(name || "")}`
+    + `&message=${encodeURIComponent(msg)}`;
+
+  fetch(url)
+    .then(res => res.json())
+    .then(res => {
+      if (res.status === "success") {
+        status.innerText = "Message submitted successfully.";
+        status.style.color = "green";
+        document.getElementById("studentMessage").value = "";
+      } else {
+        status.innerText = res.message || "Failed to submit message.";
+        status.style.color = "red";
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      status.innerText = "Submission failed.";
       status.style.color = "red";
-    }
-  })
-  .catch(err => {
-    console.error(err);
-    status.innerText = "Submission failed.";
-    status.style.color = "red";
-  });
+    });
 }
 async function changePasswordFromLogin() {
 
