@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbyvXf-0HcgvA-AElyv0UiY_jhIlQWgz4X-zKjkaeKqZrR6EOU9WdoyUAwp3YJ-qlLDc/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxrVQRrwP6qRAI2za35iwaIsbx_uDMfl5VxUuNX5sUl-pXq6G6M5hafN0Octw3lVNLc/exec";
 
 let dashboardData = null;
 let selectedCourse = null;
@@ -47,13 +47,63 @@ async function login() {
 const device = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
   ? "Mobile"
   : "Desktop";
+let deviceId = localStorage.getItem("device_id");
 
+if (!deviceId) {
+  deviceId =
+    "DEV-" +
+    Math.random().toString(36).substring(2, 10) +
+    "-" +
+    Date.now();
+
+  localStorage.setItem("device_id", deviceId);
+}
+let ip = "";
+
+try {
+  const ipRes = await fetch("https://api.ipify.org?format=json");
+  const ipData = await ipRes.json();
+  ip = ipData.ip || "";
+} catch (e) {
+  ip = "";
+}
+let latitude = "";
+let longitude = "";
+let accuracy = "";
+
+try {
+  const position = await new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      resolve,
+      reject,
+      {
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 0
+      }
+    );
+  });
+
+  latitude = position.coords.latitude || "";
+  longitude = position.coords.longitude || "";
+  accuracy = position.coords.accuracy || "";
+
+} catch (e) {
+  latitude = "";
+  longitude = "";
+  accuracy = "";
+}
 const url =
   `${API_URL}?action=login`
   + `&roll=${encodeURIComponent(roll)}`
   + `&password=${encodeURIComponent(password)}`
   + `&browser=${encodeURIComponent(browser)}`
-  + `&device=${encodeURIComponent(device)}`;
+  + `&device=${encodeURIComponent(device)}`
+  + `&deviceId=${encodeURIComponent(deviceId)}`
+  + `&ip=${encodeURIComponent(ip)}`
+  + `&latitude=${encodeURIComponent(latitude)}`
+  + `&longitude=${encodeURIComponent(longitude)}`
+  + `&accuracy=${encodeURIComponent(accuracy)}`;
 
     const res = await fetch(url);
     const data = await res.json();
