@@ -179,23 +179,35 @@ function renderMarks(list) {
   const m = list[0];
 
   let html = "<table>";
+  let hasData = false;
 
   Object.keys(m).forEach(key => {
 
-    // ❌ Skip non-mark fields
+    // Skip non-mark fields
     if (key === "RollNo" || key === "Course") return;
+
+    // Skip empty / null / undefined fields
+    if (
+      m[key] === "" ||
+      m[key] === null ||
+      m[key] === undefined
+    ) return;
+
+    hasData = true;
 
     html += `
       <tr>
         <td>${key}</td>
-        <td>${m[key] !== "" ? m[key] : "-"}</td>
+        <td>${m[key]}</td>
       </tr>
     `;
   });
 
   html += "</table>";
 
-  box.innerHTML = html;
+  box.innerHTML = hasData
+    ? html
+    : "<p>No marks uploaded.</p>";
 }
 
 
