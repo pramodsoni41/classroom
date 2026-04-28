@@ -368,6 +368,30 @@ async function goToQuiz() {
 
   newTab.location.href = quizURL;
 }
+function fetchJSONP(url) {
+  return new Promise((resolve, reject) => {
+    const callbackName =
+      "jsonp_callback_" + Math.round(100000 * Math.random());
+
+    window[callbackName] = function (data) {
+      delete window[callbackName];
+      document.body.removeChild(script);
+      resolve(data);
+    };
+
+    const script = document.createElement("script");
+    script.src =
+      url + (url.includes("?") ? "&" : "?") + "callback=" + callbackName;
+
+    script.onerror = function () {
+      delete window[callbackName];
+      document.body.removeChild(script);
+      reject(new Error("JSONP request failed"));
+    };
+
+    document.body.appendChild(script);
+  });
+}
 function submitStudentMessage() {
   const msg = document.getElementById("studentMessage").value.trim();
   const status = document.getElementById("messageStatus");
