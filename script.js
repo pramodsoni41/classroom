@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbycGypy0XnE0RO9KQqa6ZbKyB3uinufXaq6h1FDqSQok5mqDTb5ecp7-v7I9jkLckXb/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyiIuAc10vPcIXmu1Qyq-cXnMPndOsVP15bA9M22UR6EmD2zKaSkFSWCXy4EzUkbmve/exec";
 
 let dashboardData = null;
 let selectedCourse = null;
@@ -378,7 +378,6 @@ function submitStudentMessage() {
     return;
   }
 
-  // Use correct localStorage values
   const roll = localStorage.getItem("student_roll");
   const name = localStorage.getItem("student_name");
 
@@ -394,8 +393,7 @@ function submitStudentMessage() {
     + `&name=${encodeURIComponent(name || "")}`
     + `&message=${encodeURIComponent(msg)}`;
 
-  fetch(url)
-    .then(res => res.json())
+  fetchJSONP(url)
     .then(res => {
       if (res.status === "success") {
         status.innerText = "Message submitted successfully.";
