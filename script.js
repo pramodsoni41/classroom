@@ -369,6 +369,45 @@ async function goToQuiz() {
   newTab.location.href = quizURL;
 }
 
+async function changePasswordFromLogin() {
+
+  const roll = $("rollChange").value.trim();
+  const oldPass = $("oldPass").value.trim();
+  const newPass = $("newPass").value.trim();
+  const msg = $("changeMessage");
+
+  if (!roll || !oldPass || !newPass) {
+    return setMessage(msg, "Fill all fields.");
+  }
+
+  const url = `${API_URL}?action=changePassword`
+    + `&roll=${encodeURIComponent(roll)}`
+    + `&oldPassword=${encodeURIComponent(oldPass)}`
+    + `&newPassword=${encodeURIComponent(newPass)}`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.status !== "success") {
+      return setMessage(msg, data.message || "Password update failed.");
+    }
+
+    setMessage(msg, "Password updated successfully. Please login.", "green");
+
+    $("rollChange").value = "";
+    $("oldPass").value = "";
+    $("newPass").value = "";
+
+    setTimeout(() => {
+      closeModal();
+    }, 1500);
+
+  } catch {
+    setMessage(msg, "Server error while updating password.");
+  }
+}
+
 // ==========================
 // CHANGE PASSWORD
 // ==========================
