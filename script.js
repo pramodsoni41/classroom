@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbxrVQRrwP6qRAI2za35iwaIsbx_uDMfl5VxUuNX5sUl-pXq6G6M5hafN0Octw3lVNLc/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbycGypy0XnE0RO9KQqa6ZbKyB3uinufXaq6h1FDqSQok5mqDTb5ecp7-v7I9jkLckXb/exec";
 
 let dashboardData = null;
 let selectedCourse = null;
@@ -368,7 +368,47 @@ async function goToQuiz() {
 
   newTab.location.href = quizURL;
 }
+function submitStudentMessage() {
+  const msg = document.getElementById("studentMessage").value.trim();
+  const status = document.getElementById("messageStatus");
 
+  if (!msg) {
+    status.innerText = "Please enter your message first.";
+    status.style.color = "red";
+    return;
+  }
+
+  const student = JSON.parse(localStorage.getItem("student"));
+
+  if (!student || !student.roll) {
+    status.innerText = "Student information not found.";
+    status.style.color = "red";
+    return;
+  }
+
+  fetchJSONP(
+    GOOGLE_SCRIPT_URL +
+    "?action=submitMessage" +
+    "&roll=" + encodeURIComponent(student.roll) +
+    "&name=" + encodeURIComponent(student.name || "") +
+    "&message=" + encodeURIComponent(msg)
+  )
+  .then(res => {
+    if (res.status === "success") {
+      status.innerText = "Message submitted successfully.";
+      status.style.color = "green";
+      document.getElementById("studentMessage").value = "";
+    } else {
+      status.innerText = res.message || "Failed to submit message.";
+      status.style.color = "red";
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    status.innerText = "Submission failed.";
+    status.style.color = "red";
+  });
+}
 async function changePasswordFromLogin() {
 
   const roll = $("rollChange").value.trim();

@@ -74,7 +74,26 @@
       <p>Loading announcements...</p>
     </div>
   </section>
+<section class="section">
+  <h3>Student Message / Concern</h3>
 
+  <div class="card">
+    <textarea
+      id="studentMessage"
+      placeholder="Write your concern, feedback, or message here..."
+      rows="5"
+      style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc; resize:vertical;"
+    ></textarea>
+
+    <br><br>
+
+    <button onclick="submitStudentMessage()" class="quiz-btn">
+      Submit Message
+    </button>
+
+    <p id="messageStatus"></p>
+  </div>
+</section>
 </main>
 
 <script src="script.js"></script>
