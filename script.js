@@ -42,7 +42,18 @@ async function login() {
 
   try {
 
-    const url = `${API_URL}?action=login&roll=${encodeURIComponent(roll)}&password=${encodeURIComponent(password)}`;
+    const browser = navigator.userAgent;
+
+const device = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
+  ? "Mobile"
+  : "Desktop";
+
+const url =
+  `${API_URL}?action=login`
+  + `&roll=${encodeURIComponent(roll)}`
+  + `&password=${encodeURIComponent(password)}`
+  + `&browser=${encodeURIComponent(browser)}`
+  + `&device=${encodeURIComponent(device)}`;
 
     const res = await fetch(url);
     const data = await res.json();
@@ -50,7 +61,8 @@ async function login() {
     if (data.status !== "success") {
       return setMessage(msg, data.message || "Invalid login.");
     }
-
+localStorage.setItem("student_device", device);
+localStorage.setItem("student_browser", browser);
     // Save session
     localStorage.setItem("student_roll", data.student.RollNo);
     localStorage.setItem("student_name", data.student.Name);
