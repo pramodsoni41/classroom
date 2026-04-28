@@ -420,7 +420,15 @@ async function changePassword() {
 // LOGOUT
 // ==========================
 function logout() {
-  localStorage.clear();
+  localStorage.removeItem("student_roll");
+  localStorage.removeItem("student_name");
+  localStorage.removeItem("student_phone");
+  localStorage.removeItem("student_pass");
+  localStorage.removeItem("student_device");
+  localStorage.removeItem("student_browser");
+
+  // DO NOT remove device_id
+
   redirect("index.html");
 }
 
