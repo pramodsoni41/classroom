@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbxR9e5Gv9yhJmnf3m70RC1_lx4NSD2r8LK83U736ipkdNXLvCIJasspFk2JcifFLmqH/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzSst-oBU-D8UO6jW8RrPjaTRvQ-vRVF5Q8FsOWLKDimGwSPA3ddDBa19sX5Vkm9w1d/exec";
 
 let dashboardData = null;
 let selectedCourse = null;
@@ -134,19 +134,25 @@ async function loadDashboard() {
   if (!window.location.pathname.includes("dashboard.html")) return;
 
   const roll = localStorage.getItem("student_roll");
+  const password = localStorage.getItem("student_pass");
 
-  if (!roll) {
+  if (!roll || !password) {
+    alert("Session expired. Please login again.");
     return redirect("index.html");
   }
 
   try {
 
-    const url = `${API_URL}?action=dashboard&roll=${encodeURIComponent(roll)}`;
+    const url =
+      `${API_URL}?action=dashboard`
+      + `&roll=${encodeURIComponent(roll)}`
+      + `&password=${encodeURIComponent(password)}`;
+
     const res = await fetch(url);
     const data = await res.json();
 
     if (data.status !== "success") {
-      alert(data.message);
+      alert(data.message || "Unauthorized access");
       return logout();
     }
 
@@ -160,7 +166,8 @@ async function loadDashboard() {
     }
 
   } catch {
-    document.body.innerHTML = "<h3 style='padding:20px;'>Unable to load dashboard.</h3>";
+    document.body.innerHTML =
+      "<h3 style='padding:20px;'>Unable to load dashboard.</h3>";
   }
 }
 
