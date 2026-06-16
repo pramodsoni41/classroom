@@ -405,34 +405,18 @@ box.innerHTML = list.map(a => `
 `).join("");
 }
 // ==========================
-// QUIZ PORTAL — class password gate
+// QUIZ PORTAL — open quiz tab
+// The student is already logged into the classroom. The quiz reads the
+// classroom session from shared localStorage (same domain). The class
+// password is asked for, and verified server-side, ON the quiz portal.
+// No roll/password/quiz details are placed in the URL.
 // ==========================
-function openQuizPortal(cardId, quizURL, classPass) {
-  if (!classPass) {
-    window.open(quizURL, "_blank");
+function openQuiz(quizURL) {
+  if (!quizURL) {
+    alert("This quiz has no link configured. Contact your instructor.");
     return;
   }
-
-  const input = document.getElementById("cpInput_" + cardId);
-  const err   = document.getElementById("cpErr_"   + cardId);
-
-  if (!input) return;
-
-  if (input.value.trim() !== classPass.trim()) {
-    err.textContent = "Incorrect password. Try again.";
-    err.style.color = "red";
-    input.focus();
-    return;
-  }
-
-  // Password correct — open quiz with autostart flag
-  window.open(quizURL + "&autostart=1", "_blank");
-}
-
-function toggleClassPassInput(cardId, hasPass) {
-  if (!hasPass) return;
-  const row = document.getElementById("cpRow_" + cardId);
-  if (row) row.style.display = row.style.display === "none" ? "block" : "none";
+  window.open(quizURL, "_blank");
 }
 
 
@@ -448,11 +432,6 @@ function renderQuizzes(list) {
     return;
   }
 
-  const roll     = localStorage.getItem("student_roll") || "";
-  const password = localStorage.getItem("student_pass") || "";
-  const name     = localStorage.getItem("student_name") || "";
-  const phone    = localStorage.getItem("student_phone") || "";
-
   const statusColors = {
     OPEN:     "#10b981",
     UPCOMING: "#f59e0b",
@@ -460,23 +439,11 @@ function renderQuizzes(list) {
     CLOSED:   "#94a3b8"
   };
 
-  box.innerHTML = list.map((q, i) => {
+  box.innerHTML = list.map((q) => {
     const color    = statusColors[q.Status] || "#94a3b8";
     const canStart = q.Status === "OPEN";
-    const quizURL  = q.URL
-      + (q.URL.includes("?") ? "&" : "?")
-      + `roll=${encodeURIComponent(roll)}`
-      + `&password=${encodeURIComponent(password)}`
-      + `&name=${encodeURIComponent(name)}`
-      + `&phone=${encodeURIComponent(phone)}`
-      + `&quizName=${encodeURIComponent(q.QuizName)}`
-      + `&correct=${encodeURIComponent(q.CorrectMarks)}`
-      + `&negative=${encodeURIComponent(q.NegativeMarks)}`
-      + `&closeDate=${encodeURIComponent(q.CloseDate)}`;
-
-    const cardId   = "quiz_" + i;
-    const hasPass  = !!(q.ClassPassword && q.ClassPassword.trim());
-    const classPass = q.ClassPassword || "";
+    const hasPass  = !!(q.ClassPassword && String(q.ClassPassword).trim());
+    const quizURL  = (q.URL || "").replace(/'/g, "\\'");
 
     return `
       <div class="card">
@@ -490,19 +457,10 @@ function renderQuizzes(list) {
           ${hasPass ? ' &nbsp;🔒 <span style="font-size:12px;">Class password required</span>' : ""}
         </p>
         ${canStart ? `
-          <button onclick="toggleClassPassInput('${cardId}', ${hasPass}); ${!hasPass ? "window.open('" + quizURL + "&autostart=1', '_blank')" : ""}"
-            style="margin-top:10px;width:auto;padding:9px 14px;">
+          <button onclick="openQuiz('${quizURL}')" style="margin-top:10px;width:auto;padding:9px 14px;">
             Start Quiz
-          </button>
-          ${hasPass ? `
-          <div id="cpRow_${cardId}" style="display:none;margin-top:10px;">
-            <input id="cpInput_${cardId}" type="password" placeholder="Enter class password"
-              style="width:100%;padding:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:15px;margin-bottom:6px;"
-              onkeydown="if(event.key==='Enter') openQuizPortal('${cardId}','${quizURL}','${classPass.replace(/'/g,"\\'")}')">
-            <button onclick="openQuizPortal('${cardId}','${quizURL}','${classPass.replace(/'/g,"\\'")}')">Go →</button>
-            <p id="cpErr_${cardId}" style="margin:4px 0;font-size:13px;"></p>
-          </div>` : ""}
-        ` : `
+          </button>`
+        : `
           <button disabled style="margin-top:10px;opacity:0.45;cursor:not-allowed;width:auto;padding:9px 14px;font-size:14px;">
             ${q.Status === "UPCOMING" ? "Not Open Yet" : "Closed"}
           </button>`
