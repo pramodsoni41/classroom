@@ -290,45 +290,23 @@ function filterByCourse(data, course) {
 // MARKS
 // ==========================
 function renderMarks(list) {
-
   const box = $("marks");
-
-  if (!list.length) {
-    return box.innerHTML = "<p>No marks uploaded.</p>";
-  }
+  if (!list.length) { box.innerHTML = "<p style='color:#94a3b8;font-size:14px;'>No marks uploaded.</p>"; return; }
 
   const m = list[0];
-
-  let html = "<table>";
+  let rows = "";
   let hasData = false;
 
   Object.keys(m).forEach(key => {
-
-    // Skip non-mark fields
     if (key === "RollNo" || key === "Course") return;
-
-    // Skip empty / null / undefined fields
-    if (
-      m[key] === "" ||
-      m[key] === null ||
-      m[key] === undefined
-    ) return;
-
+    if (m[key] === "" || m[key] === null || m[key] === undefined) return;
     hasData = true;
-
-    html += `
-      <tr>
-        <td>${key}</td>
-        <td>${m[key]}</td>
-      </tr>
-    `;
+    rows += `<tr><td>${key}</td><td>${m[key]}</td></tr>`;
   });
 
-  html += "</table>";
-
   box.innerHTML = hasData
-    ? html
-    : "<p>No marks uploaded.</p>";
+    ? `<table class="stat-table">${rows}</table>`
+    : "<p style='color:#94a3b8;font-size:14px;'>No marks uploaded.</p>";
 }
 
 
@@ -336,26 +314,18 @@ function renderMarks(list) {
 // ATTENDANCE
 // ==========================
 function renderAttendance(list) {
-
   const box = $("attendance");
-
-  if (!list.length) {
-    return box.innerHTML = "<p>No attendance uploaded.</p>";
-  }
+  if (!list.length) { box.innerHTML = "<p style='color:#94a3b8;font-size:14px;'>No attendance uploaded.</p>"; return; }
 
   let html = "";
-
   list.forEach(a => {
-
-    html += "<table>";
-
+    let rows = "";
     Object.keys(a).forEach(key => {
       if (key !== "RollNo" && key !== "Course") {
-        html += `<tr><td>${key}</td><td>${a[key]}</td></tr>`;
+        rows += `<tr><td>${key}</td><td>${a[key]}</td></tr>`;
       }
     });
-
-    html += "</table>";
+    html += `<table class="stat-table">${rows}</table>`;
   });
 
   box.innerHTML = html;
@@ -374,11 +344,14 @@ function renderNotes(list) {
   }
 
   box.innerHTML = list.map(n => `
-    <div class="card">
-      <h4>${n.Title}</h4>
-      <p>${n.Description || ""}</p>
-      <p class="date">${n.Date || ""}</p>
-      <a href="${n.Link}" target="_blank">Open Notes</a>
+    <div class="note-card">
+      <div class="note-card-accent"></div>
+      <div class="note-card-body">
+        <h4>${n.Title}</h4>
+        ${n.Description ? `<p>${n.Description}</p>` : ""}
+        ${n.Date ? `<p class="date">📅 ${n.Date}</p>` : ""}
+        ${n.Link ? `<a href="${n.Link}" target="_blank">📄 Open Notes</a>` : ""}
+      </div>
     </div>
   `).join("");
 }
@@ -395,14 +368,14 @@ function renderAnnouncements(list) {
     return box.innerHTML = "<p>No announcements.</p>";
   }
 
-box.innerHTML = list.map(a => `
-  <div class="card">
-    <h4>${a.Announcement || "-"}</h4>
-    <p>${a.Description || ""}</p>
-    ${a.Date ? `<p class="date">${new Date(a.Date).toLocaleDateString('en-IN')}</p>` : ""}
-    ${a.Link ? `<a href="${a.Link}" target="_blank">Open</a>` : ""}
-  </div>
-`).join("");
+  box.innerHTML = list.map(a => `
+    <div class="ann-card">
+      <h4>${a.Announcement || "-"}</h4>
+      ${a.Description ? `<p>${a.Description}</p>` : ""}
+      ${a.Date ? `<p class="date">📅 ${new Date(a.Date).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'})}</p>` : ""}
+      ${a.Link ? `<a href="${a.Link}" target="_blank">🔗 View</a>` : ""}
+    </div>
+  `).join("");
 }
 // ==========================
 // QUIZ PORTAL — open quiz tab
@@ -446,24 +419,19 @@ function renderQuizzes(list) {
     const quizURL  = (q.URL || "").replace(/'/g, "\\'");
 
     return `
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-          <h4 style="margin:0;flex:1;">${q.QuizName}</h4>
-          <span style="background:${color};color:#fff;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:bold;white-space:nowrap;margin-left:8px;">${q.Status}</span>
+      <div class="quiz-card">
+        <div class="quiz-card-header">
+          <div class="quiz-card-title">${q.QuizName}</div>
+          <span class="status-badge" style="background:${color};color:#fff;">${q.Status}</span>
         </div>
-        <p class="date">Open: ${q.OpenDate || "—"} &nbsp;|&nbsp; Close: ${q.CloseDate || "—"}</p>
-        <p style="font-size:13px;color:#475569;margin:4px 0;">
-          Marks: +${q.CorrectMarks} / ${q.NegativeMarks}
-          ${hasPass ? ' &nbsp;🔒 <span style="font-size:12px;">Class password required</span>' : ""}
-        </p>
-        ${canStart ? `
-          <button onclick="openQuiz('${quizURL}')" style="margin-top:10px;width:auto;padding:9px 14px;">
-            Start Quiz
-          </button>`
-        : `
-          <button disabled style="margin-top:10px;opacity:0.45;cursor:not-allowed;width:auto;padding:9px 14px;font-size:14px;">
-            ${q.Status === "UPCOMING" ? "Not Open Yet" : "Closed"}
-          </button>`
+        <div class="quiz-meta">
+          <div class="quiz-meta-row">📅 <span>${q.OpenDate || "—"} → ${q.CloseDate || "—"}</span></div>
+          <div class="quiz-meta-row">🎯 <span>+${q.CorrectMarks} correct &nbsp;/&nbsp; ${q.NegativeMarks} incorrect</span></div>
+          ${hasPass ? `<div class="quiz-meta-row">🔒 <span>Class password required</span></div>` : ""}
+        </div>
+        ${canStart
+          ? `<button class="quiz-start-btn" onclick="openQuiz('${quizURL}')">Start Quiz →</button>`
+          : `<button class="quiz-start-btn" disabled>${q.Status === "UPCOMING" ? "⏳ Not Open Yet" : "🔒 Closed"}</button>`
         }
       </div>
     `;

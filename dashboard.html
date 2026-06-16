@@ -31,72 +31,79 @@
 <main class="container">
 
   <section class="section">
-    <h3>Registered Courses</h3>
+    <div class="section-header">
+      <div class="section-icon" style="background:#eff6ff;">📚</div>
+      <h3>Registered Courses</h3>
+    </div>
     <div id="courseTabs" class="course-tabs">
       <p>Loading courses...</p>
     </div>
   </section>
 
   <section class="section">
-    <h3 id="selectedCourseTitle">Course Dashboard</h3>
-
+    <div class="section-header">
+      <div class="section-icon" style="background:#f0fdf4;">📊</div>
+      <h3 id="selectedCourseTitle">Marks & Attendance</h3>
+    </div>
     <div class="two-column">
       <div>
-        <h3>Marks</h3>
-        <div id="marks" class="card">
-          <p>Loading marks...</p>
-        </div>
+        <p style="font-size:13px;font-weight:600;color:#64748b;margin:0 0 10px;text-transform:uppercase;letter-spacing:0.05em;">Marks</p>
+        <div id="marks" class="card"><p>Loading marks...</p></div>
       </div>
-
       <div>
-        <h3>Attendance</h3>
-        <div id="attendance" class="card">
-          <p>Loading attendance...</p>
-        </div>
+        <p style="font-size:13px;font-weight:600;color:#64748b;margin:0 0 10px;text-transform:uppercase;letter-spacing:0.05em;">Attendance</p>
+        <div id="attendance" class="card"><p>Loading attendance...</p></div>
       </div>
     </div>
   </section>
 
   <section class="section">
-    <h3>Class Notes</h3>
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef3c7;">📝</div>
+      <h3>Class Notes</h3>
+    </div>
     <div id="notes" class="grid">
       <p>Loading notes...</p>
     </div>
   </section>
 
   <section class="section">
-    <h3>Announcements</h3>
+    <div class="section-header">
+      <div class="section-icon" style="background:#fff7ed;">📢</div>
+      <h3>Announcements</h3>
+    </div>
     <div id="announcements" class="grid">
       <p>Loading announcements...</p>
     </div>
   </section>
-<section class="section" id="quizSection">
-  <h3>Quizzes</h3>
-  <div id="quizzes" class="grid">
-    <p>Loading quizzes...</p>
-  </div>
-</section>
 
-<section class="section">
-  <h3>Student Message / Concern</h3>
+  <section class="section" id="quizSection">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f0fdf4;">✏️</div>
+      <h3>Quizzes</h3>
+    </div>
+    <div id="quizzes" class="grid">
+      <p>Loading quizzes...</p>
+    </div>
+  </section>
 
-  <div class="card">
-    <textarea
-      id="studentMessage"
-      placeholder="Write your concern, feedback, or message here..."
-      rows="5"
-      style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc; resize:vertical;"
-    ></textarea>
-
-    <br><br>
-
-    <button onclick="submitStudentMessage()" class="quiz-btn">
-      Submit Message
-    </button>
-
-    <p id="messageStatus"></p>
-  </div>
-</section>
+  <section class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#f8fafc;">💬</div>
+      <h3>Message / Concern</h3>
+    </div>
+    <div class="message-box">
+      <textarea
+        id="studentMessage"
+        placeholder="Write your concern, feedback, or message here..."
+        rows="4"
+      ></textarea>
+      <button onclick="submitStudentMessage()" class="quiz-btn">
+        Submit Message
+      </button>
+      <p id="messageStatus" style="margin-top:10px;font-size:13px;"></p>
+    </div>
+  </section>
 </main>
 
 <script src="script.js"></script>
