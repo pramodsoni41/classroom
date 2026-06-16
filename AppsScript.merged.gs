@@ -30,14 +30,9 @@ function doGet(e) {
   const action = String(e.parameter.action || "").trim();
   const callback = e.parameter.callback || null;
 
-  if (action === "login") return login(e);
   if (action === "dashboard") return dashboard(e);
   if (action === "changePassword") return changePassword(e);
   if (action === "googleLogin") return googleLogin(e);
-
-  if (action === "generateToken") {
-    return handleGenerateToken_(e.parameter.roll, e.parameter.password);
-  }
 
   if (action === "submitMessage") {
     return jsonOutput(submitMessage(e), callback);
@@ -431,80 +426,6 @@ function logStudentLogin_(roll, name, status, browser, device, deviceId, ip, lat
   }
 
   sheet.appendRow([new Date(), roll||"", name||"", status||"", browser||"", device||"", deviceId||"", ip||"", latitude||"", longitude||"", accuracy||"", remarks||""]);
-}
-
-/* =========================
-   TOKEN
-========================= */
-
-function handleGenerateToken_(roll, password) {
-  if (!roll || !password) return jsonOutput({ status: "error" });
-
-  const students = getStudentsData_();
-  const valid = students.find(r =>
-    String(r.RollNo || "").trim() === roll &&
-    String(r.Password || "").trim() === password
-  );
-
-  if (!valid) return jsonOutput({ status: "error", message: "Unauthorized" });
-
-  const token = Utilities.getUuid();
-  const expiry = Date.now() + (30 * 60 * 1000);
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("Tokens");
-  sheet.appendRow([roll, token, expiry]);
-
-  return jsonOutput({ status: "success", token: token });
-}
-
-/* =========================
-   LOGIN (ROLL + PASSWORD)
-========================= */
-
-function login(e) {
-  const roll     = String(e.parameter.roll     || "").trim();
-  const password = String(e.parameter.password || "").trim();
-  const browser  = String(e.parameter.browser  || "").trim();
-  const device   = String(e.parameter.device   || "").trim();
-  const deviceId = String(e.parameter.deviceId || "").trim();
-  const ip       = String(e.parameter.ip       || "").trim();
-  const latitude = String(e.parameter.latitude || "").trim();
-  const longitude= String(e.parameter.longitude|| "").trim();
-  const accuracy = String(e.parameter.accuracy || "").trim();
-
-  if (!roll || !password) {
-    return jsonOutput({ status: "error", message: "Roll & Password required" });
-  }
-
-  const students = getStudentsData_();
-  const student = students.find(row =>
-    String(row.RollNo   || "").trim() === roll &&
-    String(row.Password || "").trim() === password
-  );
-
-  if (!student) {
-    logStudentLogin_(roll, "", "FAILED", browser, device, deviceId, ip, latitude, longitude, accuracy, "Invalid credentials");
-    return jsonOutput({ status: "error", message: "Invalid credentials" });
-  }
-
-  const courses = getCourses_(student);
-  if (courses.length === 0) {
-    return jsonOutput({ status: "error", message: "No course assigned" });
-  }
-
-  logStudentLogin_(student.RollNo, student.Name, "SUCCESS", browser, device, deviceId, ip, latitude, longitude, accuracy, "Login successful");
-
-  return jsonOutput({
-    status: "success",
-    student: {
-      RollNo: student.RollNo,
-      Name: student.Name,
-      Phone: student.Phone,
-      Email: student.Email,
-      Courses: courses
-    }
-  });
 }
 
 /* =========================
