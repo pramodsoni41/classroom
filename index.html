@@ -81,47 +81,11 @@
 
   <p id="loginMessage"></p>
 
-  <button onclick="openModal()" class="quiz-btn">
-    Change Password
-  </button>
-</div>
-
-<!-- Change Password Modal -->
-<div id="changeModal" class="modal">
-  <div class="modal-content">
-    <span class="close-btn" onclick="closeModal()">&times;</span>
-    <h3>Change Password</h3>
-    <input type="text" id="rollChange" placeholder="Roll Number">
-    <input type="password" id="oldPass" placeholder="Old Password">
-    <input type="password" id="newPass" placeholder="New Password">
-    <button onclick="changePasswordFromLogin()">Update Password</button>
-    <p id="changeMessage"></p>
-  </div>
 </div>
 
 <script src="script.js"></script>
 
 <script>
-  function openModal() {
-    document.getElementById("changeModal").style.display = "flex";
-  }
-
-  function closeModal() {
-    document.getElementById("changeModal").style.display = "none";
-  }
-
-  function toggleRollSection() {
-    const sec = document.getElementById("rollSection");
-    const btn = document.querySelector(".roll-toggle");
-    const visible = sec.style.display === "block";
-    sec.style.display = visible ? "none" : "block";
-    btn.textContent = visible ? "Use Roll Number instead" : "Hide Roll Number login";
-  }
-
-  window.onclick = function(e) {
-    let modal = document.getElementById("changeModal");
-    if (e.target === modal) modal.style.display = "none";
-  };
 
   function initGoogleSignIn() {
     google.accounts.id.initialize({
