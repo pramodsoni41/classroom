@@ -1,7 +1,7 @@
 /* ============================================================
    CLASSROOM + QUIZ — UNIFIED BACKEND  (single spreadsheet)
    Bind this script to ONE spreadsheet that holds ALL tabs:
-     Students, LoginLogs, Messages, Tokens,
+     Students, LoginLogs, Messages,
      Marks, Attendance, Notes, Announcements,
      QuizConfig, Q_<QuizId>, Resp_<QuizId>
    Everything uses getActiveSpreadsheet() — no external sheet IDs.
