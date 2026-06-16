@@ -49,8 +49,10 @@ function doGet(e) {
 
   /* Attendance — JSONP GET */
   const type = String(e.parameter.type || "").trim().toLowerCase();
-  if (type === "generate_qr")    return jsonOutput(attGenerateQR_(e.parameter), callback);
-  if (type === "mark_attendance") return jsonOutput(attMarkAttendance_(e.parameter), callback);
+  if (type === "get_admin_pass")  return jsonOutput({ status: "success", pass: attGetConfig_("admin_pass") || "admin123" }, callback);
+  if (type === "get_sessions")    return jsonOutput({ status: "success", sessions: attGetSessions_() }, callback);
+  if (type === "generate_qr")     return jsonOutput(attGenerateQR_(e.parameter), callback);
+  if (type === "mark_attendance")  return jsonOutput(attMarkAttendance_(e.parameter), callback);
 
   return jsonOutput({ status: "error", message: "Invalid action" }, callback);
 }
@@ -822,8 +824,13 @@ function attGetStudentsBundle_(sheet) {
   const cached   = cache.get(cacheKey);
   if (cached) return JSON.parse(cached);
 
-  const lastRow = sheet.getLastRow();
-  const values  = lastRow >= 2 ? sheet.getRange(2, 1, lastRow - 1, 4).getValues() : [];
+  const all = sheet.getDataRange().getValues();
+  if (all.length < 2) return { rollMap: {}, deviceMap: {} };
+
+  const headers  = all[0].map(h => String(h).trim());
+  const rollIdx  = headers.indexOf("RollNo");
+  const nameIdx  = headers.indexOf("Name");
+  const devIdx   = headers.indexOf("DeviceID");   // add DeviceID column to Students sheet
 
   const deviceMap = {}, rollMap = {};
   const norm = (val) => {
@@ -831,14 +838,17 @@ function attGetStudentsBundle_(sheet) {
     return String(val || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
   };
 
-  values.forEach((r, i) => {
-    const roll   = norm(r[0]);
-    const name   = String(r[2] || "").trim();
-    const device = norm(r[3]);
-    const rec    = { row: i + 2, roll: String(r[0] || "").trim(), name, device };
+  for (let i = 1; i < all.length; i++) {
+    const r      = all[i];
+    const roll   = rollIdx  >= 0 ? norm(r[rollIdx])  : norm(r[0]);
+    const name   = nameIdx  >= 0 ? String(r[nameIdx] || "").trim() : String(r[2] || "").trim();
+    const device = devIdx   >= 0 ? norm(r[devIdx])   : norm(r[3]);
+    const rawRoll = rollIdx >= 0 ? String(r[rollIdx] || "").trim() : String(r[0] || "").trim();
+
+    const rec = { row: i + 1, roll: rawRoll, name, device };
     if (roll)   rollMap[roll]     = rec;
     if (device) deviceMap[device] = rec;
-  });
+  }
 
   const bundle = { rollMap, deviceMap };
   cache.put(cacheKey, JSON.stringify(bundle), ATT_STUDENT_CACHE_TTL);
@@ -870,6 +880,18 @@ function attGetConfig_(key) {
 
   cache.put(cacheKey, JSON.stringify(map), ATT_CONFIG_CACHE_TTL);
   return String(map[key] || "").trim();
+}
+
+function attGetSessions_() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Config");
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  for (let i = 0; i < data.length; i++) {
+    if (String(data[i][0] || "").trim().toLowerCase() === "sessions") {
+      return String(data[i][1] || "").split(",").map(s => s.trim()).filter(Boolean);
+    }
+  }
+  return [];
 }
 
 function attSignature_(session_id, timestamp, token, secret) {
