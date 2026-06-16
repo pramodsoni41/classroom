@@ -6,8 +6,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style.css">
 
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <style>
-    /* 🔹 Modal Styling */
+    .google-btn-wrap {
+      display: flex;
+      justify-content: center;
+      margin: 8px 0 4px;
+    }
+
+    .roll-toggle {
+      background: none;
+      border: none;
+      color: #2563eb;
+      font-size: 13px;
+      cursor: pointer;
+      padding: 0;
+      width: auto;
+      text-decoration: underline;
+      margin-top: 6px;
+    }
+
+    .roll-toggle:hover {
+      color: #1d4ed8;
+      background: none;
+    }
+
+    #rollSection {
+      display: none;
+      margin-top: 14px;
+    }
+
     .modal {
       display: none;
       position: fixed;
@@ -44,35 +74,44 @@
   <h1>Student Portal</h1>
   <p class="subtitle">Login to view notes, marks and attendance</p>
 
-  <input type="text" id="roll" placeholder="Enter Roll Number" required>
-  <input type="password" id="password" placeholder="Enter Password" required>
+  <!-- Google Sign-In Button -->
+  <div class="google-btn-wrap">
+    <div id="googleSignInBtn"></div>
+  </div>
 
-  <button onclick="login()">Login</button>
+  <p id="loginMessage"></p>
+
+  <!-- Roll Number fallback (hidden by default) -->
+  <div id="rollSection">
+    <div class="divider" style="margin-top:0;">Roll Number Login</div>
+    <input type="text" id="roll" placeholder="Enter Roll Number" required>
+    <input type="password" id="password" placeholder="Enter Password" required>
+    <button onclick="login()">Login</button>
+  </div>
+
+  <div style="margin-top:14px;">
+    <button class="roll-toggle" onclick="toggleRollSection()">
+      Use Roll Number instead
+    </button>
+  </div>
 
   <div class="divider">OR</div>
 
   <button onclick="openModal()" class="quiz-btn">
     Change Password
   </button>
-
-  <p id="loginMessage"></p>
 </div>
 
-<!-- 🔹 Proper Modal -->
+<!-- Change Password Modal -->
 <div id="changeModal" class="modal">
   <div class="modal-content">
-
     <span class="close-btn" onclick="closeModal()">&times;</span>
-
     <h3>Change Password</h3>
-
     <input type="text" id="rollChange" placeholder="Roll Number">
     <input type="password" id="oldPass" placeholder="Old Password">
     <input type="password" id="newPass" placeholder="New Password">
-
-<button onclick="changePasswordFromLogin()">Update Password</button>
+    <button onclick="changePasswordFromLogin()">Update Password</button>
     <p id="changeMessage"></p>
-
   </div>
 </div>
 
@@ -87,13 +126,32 @@
     document.getElementById("changeModal").style.display = "none";
   }
 
-  // Optional: close when clicking outside
+  function toggleRollSection() {
+    const sec = document.getElementById("rollSection");
+    const btn = document.querySelector(".roll-toggle");
+    const visible = sec.style.display === "block";
+    sec.style.display = visible ? "none" : "block";
+    btn.textContent = visible ? "Use Roll Number instead" : "Hide Roll Number login";
+  }
+
   window.onclick = function(e) {
     let modal = document.getElementById("changeModal");
-    if (e.target === modal) {
-      modal.style.display = "none";
-    }
-  }
+    if (e.target === modal) modal.style.display = "none";
+  };
+
+  // Render Google Sign-In button once GIS loads
+  window.addEventListener("load", function () {
+    if (typeof google === "undefined") return;
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredential,
+      auto_select: false
+    });
+    google.accounts.id.renderButton(
+      document.getElementById("googleSignInBtn"),
+      { theme: "outline", size: "large", width: 300, text: "signin_with" }
+    );
+  });
 </script>
 
 </body>

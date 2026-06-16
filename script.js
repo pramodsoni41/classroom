@@ -2,6 +2,7 @@
 // CONFIG
 // ==========================
 const API_URL = "https://script.google.com/macros/s/AKfycbyKQqq-J-T_EG7bwGuaYwDuNKPn6dGsqr7nE0GvnoLxsnoj_mL8IdqC8t40ecDWXs6s/exec";
+const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"; // ← paste your OAuth client ID here
 
 let dashboardData = null;
 let selectedCourse = null;
@@ -22,6 +23,47 @@ function setMessage(el, text, color = "red") {
 
 function redirect(page) {
   window.location.href = page;
+}
+
+
+// ==========================
+// GOOGLE LOGIN
+// ==========================
+async function handleGoogleCredential(response) {
+  const msg = $("loginMessage");
+  setMessage(msg, "Verifying with Google...", "#555");
+
+  try {
+    const url = `${API_URL}?action=googleLogin&token=${encodeURIComponent(response.credential)}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    if (data.status !== "success") {
+      return setMessage(msg, data.message || "Google account not registered. Contact instructor.");
+    }
+
+    // Collect device info same as password login
+    let deviceId = localStorage.getItem("device_id");
+    if (!deviceId) {
+      deviceId = "DEV-" + Math.random().toString(36).substring(2, 10) + "-" + Date.now();
+      localStorage.setItem("device_id", deviceId);
+    }
+    localStorage.setItem("device", deviceId);
+
+    // Store Google session (no password stored)
+    localStorage.setItem("student_roll",         data.student.RollNo);
+    localStorage.setItem("student_name",         data.student.Name);
+    localStorage.setItem("student_phone",        data.student.Phone || "");
+    localStorage.setItem("student_auth_type",    "google");
+    localStorage.setItem("student_session_token", data.sessionToken);
+    // Clear any leftover password session
+    localStorage.removeItem("student_pass");
+
+    redirect("dashboard.html");
+
+  } catch (err) {
+    setMessage(msg, "Server error. Try again.");
+  }
 }
 
 
@@ -135,20 +177,24 @@ async function loadDashboard() {
 
   if (!window.location.pathname.includes("dashboard.html")) return;
 
-  const roll = localStorage.getItem("student_roll");
-  const password = localStorage.getItem("student_pass");
+  const roll      = localStorage.getItem("student_roll");
+  const authType  = localStorage.getItem("student_auth_type") || "password";
+  const password  = localStorage.getItem("student_pass");
+  const sessionToken = localStorage.getItem("student_session_token");
 
-  if (!roll || !password) {
+  if (!roll || (authType === "google" && !sessionToken) || (authType === "password" && !password)) {
     alert("Session expired. Please login again.");
     return redirect("index.html");
   }
 
   try {
 
-    const url =
-      `${API_URL}?action=dashboard`
-      + `&roll=${encodeURIComponent(roll)}`
-      + `&password=${encodeURIComponent(password)}`;
+    let url = `${API_URL}?action=dashboard&roll=${encodeURIComponent(roll)}`;
+    if (authType === "google") {
+      url += `&sessionToken=${encodeURIComponent(sessionToken)}`;
+    } else {
+      url += `&password=${encodeURIComponent(password)}`;
+    }
 
     const res = await fetch(url);
     const data = await res.json();
@@ -599,6 +645,13 @@ function logout() {
   localStorage.removeItem("student_pass");
   localStorage.removeItem("student_device");
   localStorage.removeItem("student_browser");
+  localStorage.removeItem("student_auth_type");
+  localStorage.removeItem("student_session_token");
+
+  // Sign out of Google silently so next visit shows the account picker
+  if (typeof google !== "undefined") {
+    google.accounts.id.disableAutoSelect();
+  }
 
   // DO NOT remove device_id
 
