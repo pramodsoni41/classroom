@@ -759,14 +759,15 @@ function attMarkAttendance_(data) {
 
     if (!foundMatch) return { status: "register_required" };
 
-    /* --- First-time device registration --- */
-    if (needsReg) {
+    /* --- First-time device registration (only if DeviceID column exists) --- */
+    const devColIdx = bundle.devColIdx || 0;
+    if (needsReg && devColIdx > 0) {
       const lk = LockService.getScriptLock();
       try {
         if (!lk.tryLock(2000)) return { status: "busy" };
-        const existing = norm(studentsSheet.getRange(matchedRow, 4).getValue());
+        const existing = norm(studentsSheet.getRange(matchedRow, devColIdx).getValue());
         if (!existing) {
-          studentsSheet.getRange(matchedRow, 4).setValue(device_id);
+          studentsSheet.getRange(matchedRow, devColIdx).setValue(device_id);
           attInvalidateStudentsCache_();
         } else if (existing !== normDevice) {
           return attDeviceMismatch_(studentsSheet, matchedRow, device_id);
@@ -830,7 +831,8 @@ function attGetStudentsBundle_(sheet) {
   const headers  = all[0].map(h => String(h).trim());
   const rollIdx  = headers.indexOf("RollNo");
   const nameIdx  = headers.indexOf("Name");
-  const devIdx   = headers.indexOf("DeviceID");   // add DeviceID column to Students sheet
+  const devIdx   = headers.indexOf("DeviceID");
+  const devColIdx = devIdx >= 0 ? devIdx + 1 : 0;  // 1-based for getRange, 0 = not found
 
   const deviceMap = {}, rollMap = {};
   const norm = (val) => {
@@ -850,7 +852,7 @@ function attGetStudentsBundle_(sheet) {
     if (device) deviceMap[device] = rec;
   }
 
-  const bundle = { rollMap, deviceMap };
+  const bundle = { rollMap, deviceMap, devColIdx };
   cache.put(cacheKey, JSON.stringify(bundle), ATT_STUDENT_CACHE_TTL);
   return bundle;
 }
