@@ -1,9 +1,10 @@
 /* ============================================================
-   CLASSROOM + QUIZ — UNIFIED BACKEND  (single spreadsheet)
+   CLASSROOM + QUIZ + ATTENDANCE — UNIFIED BACKEND
    Bind this script to ONE spreadsheet that holds ALL tabs:
      Students, LoginLogs, Messages,
      Marks, Attendance, Notes, Announcements,
-     QuizConfig, Q_<QuizId>, Resp_<QuizId>
+     QuizConfig, Q_<QuizId>, Resp_<QuizId>,
+     AttendanceLogs, Config
    Everything uses getActiveSpreadsheet() — no external sheet IDs.
    ============================================================ */
 
@@ -13,14 +14,22 @@
 
 const STUDENT_TAB = "Students";
 
-const SHEET_MARKS = "Marks";
-const SHEET_ATTENDANCE = "Attendance";
-const SHEET_NOTES = "Notes";
+const SHEET_MARKS         = "Marks";
+const SHEET_ATTENDANCE    = "Attendance";
+const SHEET_NOTES         = "Notes";
 const SHEET_ANNOUNCEMENTS = "Announcements";
-const SHEET_LOGIN_LOGS = "LoginLogs";
+const SHEET_LOGIN_LOGS    = "LoginLogs";
 
-const QUIZ_SESSION_PREFIX = "quizsess_";
+const QUIZ_SESSION_PREFIX  = "quizsess_";
 const QUIZ_SESSION_TTL_SEC = 6 * 60 * 60;
+
+/* Attendance QR config */
+const ATT_QR_VALIDITY_SEC   = 40;
+const ATT_QR_GRACE_SEC      = 10;
+const ATT_QR_CACHE_TTL_SEC  = 120;
+const ATT_STUDENT_CACHE_TTL = 300;
+const ATT_CONFIG_CACHE_TTL  = 300;
+const ATT_DUPLICATE_WIN_SEC = 1200;
 
 /* =========================
    ROUTER — GET (classroom)
@@ -30,13 +39,18 @@ function doGet(e) {
   const action = String(e.parameter.action || "").trim();
   const callback = e.parameter.callback || null;
 
-  if (action === "dashboard") return dashboard(e);
+  if (action === "dashboard")      return dashboard(e);
   if (action === "changePassword") return changePassword(e);
-  if (action === "googleLogin") return googleLogin(e);
+  if (action === "googleLogin")    return googleLogin(e);
 
   if (action === "submitMessage") {
     return jsonOutput(submitMessage(e), callback);
   }
+
+  /* Attendance — JSONP GET */
+  const type = String(e.parameter.type || "").trim().toLowerCase();
+  if (type === "generate_qr")    return jsonOutput(attGenerateQR_(e.parameter), callback);
+  if (type === "mark_attendance") return jsonOutput(attMarkAttendance_(e.parameter), callback);
 
   return jsonOutput({ status: "error", message: "Invalid action" }, callback);
 }
@@ -635,4 +649,231 @@ function jsonOutput(obj, callback) {
   return ContentService
     .createTextOutput(json)
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* ============================================================
+   ATTENDANCE — QR GENERATION & MARKING
+   AttendanceLogs tab columns:
+     A=DateTime  B=StudentID  C=SessionID  D=Token
+     E=Timestamp F=ScanLatency G=DeviceID  H=Name
+     I=Latitude  J=Longitude
+   ============================================================ */
+
+function attGenerateQR_(params) {
+  const session_id   = String(params.session_id || "1").trim();
+  const secret       = attGetConfig_("secret_key");
+  const timestampSec = Math.floor(Date.now() / 1000);
+  const token        = Math.random().toString(36).substring(2, 10);
+  const fullSig      = attSignature_(session_id, timestampSec, token, secret);
+  const shortSig     = fullSig.substring(0, 16);
+  const qrString     = [session_id, timestampSec, token, shortSig].join("|");
+
+  CacheService.getScriptCache().put(
+    "qr_token_" + token,
+    JSON.stringify({ session_id, timestamp: timestampSec, signature: shortSig }),
+    ATT_QR_CACHE_TTL_SEC
+  );
+
+  return {
+    status:       "success",
+    qr_payload:   qrString,
+    server_time:  Date.now(),
+    validity_sec: ATT_QR_VALIDITY_SEC,
+    grace_sec:    ATT_QR_GRACE_SEC
+  };
+}
+
+function attMarkAttendance_(data) {
+  try {
+    const student_id = String(data.student_id    || "").trim();
+    const session_id = String(data.session_id    || "").trim();
+    const token      = String(data.token         || "").trim();
+    const signature  = String(data.signature     || "").trim();
+    const device_id  = String(data.device_id     || "").trim();
+    const lat        = String(data.lat           || "").trim();
+    const lon        = String(data.lon           || "").trim();
+    const t_gen      = Number(data.timestamp     || 0);
+    const t_now      = Math.floor(Date.now() / 1000);
+    const qrAge      = t_now - t_gen;
+
+    if (!session_id || !token || !t_gen || !signature || !device_id)
+      return { status: "error", message: "Incomplete parameters" };
+
+    if (qrAge < 0)                                  return { status: "invalid_time" };
+    if (qrAge > (ATT_QR_VALIDITY_SEC + ATT_QR_GRACE_SEC)) return { status: "qr_stale" };
+    if (qrAge > 600)                                return { status: "expired" };
+
+    const secret      = attGetConfig_("secret_key");
+    const expectedSig = attSignature_(session_id, t_gen, token, secret).substring(0, 16);
+    if (signature !== expectedSig) return { status: "invalid_sig" };
+
+    if (!CacheService.getScriptCache().get("qr_token_" + token))
+      return { status: "qr_invalid" };
+
+    /* --- Student lookup --- */
+    const ss            = SpreadsheetApp.getActiveSpreadsheet();
+    const studentsSheet = ss.getSheetByName(STUDENT_TAB);
+    if (!studentsSheet) return { status: "error", message: "Students sheet missing" };
+
+    const norm = (val) => {
+      if (typeof val === "number") val = val.toFixed(0);
+      return String(val || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+    };
+
+    const normDevice = norm(device_id);
+    const normRoll   = norm(student_id);
+    const bundle     = attGetStudentsBundle_(studentsSheet);
+
+    let finalRoll = "", studentName = "", matchedRow = -1;
+    let foundMatch = false, needsReg = false, deviceChanged = false;
+
+    if (normDevice && bundle.deviceMap[normDevice]) {
+      const rec    = bundle.deviceMap[normDevice];
+      finalRoll    = rec.roll;
+      studentName  = rec.name;
+      matchedRow   = rec.row;
+      foundMatch   = true;
+    } else if (normRoll && bundle.rollMap[normRoll]) {
+      const rec    = bundle.rollMap[normRoll];
+      finalRoll    = rec.roll;
+      studentName  = rec.name;
+      matchedRow   = rec.row;
+      deviceChanged = !!(rec.device && rec.device !== normDevice);
+      needsReg     = !rec.device;
+      foundMatch   = true;
+
+      if (deviceChanged) {
+        const lk = LockService.getScriptLock();
+        try {
+          if (lk.tryLock(2000)) {
+            const prev = Number(studentsSheet.getRange(matchedRow, 6).getValue() || 0);
+            studentsSheet.getRange(matchedRow, 5).setValue("⚠️ Device Changed");
+            studentsSheet.getRange(matchedRow, 6).setValue(prev + 1);
+            studentsSheet.getRange(matchedRow, 7).setValue(device_id);
+          }
+        } finally { try { lk.releaseLock(); } catch(_) {} }
+      }
+    }
+
+    if (!foundMatch) return { status: "register_required" };
+
+    /* --- First-time device registration --- */
+    if (needsReg) {
+      const lk = LockService.getScriptLock();
+      try {
+        if (!lk.tryLock(2000)) return { status: "busy" };
+        const existing = norm(studentsSheet.getRange(matchedRow, 4).getValue());
+        if (!existing) {
+          studentsSheet.getRange(matchedRow, 4).setValue(device_id);
+          attInvalidateStudentsCache_();
+        } else if (existing !== normDevice) {
+          return attDeviceMismatch_(studentsSheet, matchedRow, device_id);
+        }
+      } finally { try { lk.releaseLock(); } catch(_) {} }
+    }
+
+    /* --- Duplicate check --- */
+    const logSheet = attGetOrCreateLog_(ss);
+    const cache    = CacheService.getScriptCache();
+    const dupKey   = "att_" + session_id + "_" + finalRoll;
+    let isDuplicate = false;
+
+    if (logSheet.getLastRow() > 1 && cache.get(dupKey)) {
+      isDuplicate = true;
+    } else {
+      cache.put(dupKey, "1", ATT_DUPLICATE_WIN_SEC);
+    }
+
+    /* --- Write record --- */
+    const row = [new Date(), finalRoll, session_id, token, t_gen, qrAge + "s", device_id, studentName, lat, lon];
+    const wl  = LockService.getScriptLock();
+    if (!wl.tryLock(2000)) return { status: "busy" };
+    try {
+      logSheet.getRange(logSheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
+    } finally { try { wl.releaseLock(); } catch(_) {} }
+
+    return { status: "success", roll: finalRoll, name: studentName, duplicate: isDuplicate, device_changed: deviceChanged };
+
+  } catch (err) {
+    return { status: "error", message: err && err.message ? err.message : String(err) };
+  }
+}
+
+function attDeviceMismatch_(sheet, row, device_id) {
+  const prev = Number(sheet.getRange(row, 6).getValue() || 0);
+  sheet.getRange(row, 5).setValue("⚠️ Device Changed");
+  sheet.getRange(row, 6).setValue(prev + 1);
+  sheet.getRange(row, 7).setValue(device_id);
+  return { status: "device_already_registered" };
+}
+
+function attGetOrCreateLog_(ss) {
+  let sh = ss.getSheetByName("AttendanceLogs");
+  if (!sh) {
+    sh = ss.insertSheet("AttendanceLogs");
+    sh.appendRow(["DateTime","StudentID","SessionID","Token","Timestamp","ScanLatency","DeviceID","Name","Latitude","Longitude"]);
+  }
+  return sh;
+}
+
+function attGetStudentsBundle_(sheet) {
+  const cache    = CacheService.getScriptCache();
+  const cacheKey = "att_students_v1";
+  const cached   = cache.get(cacheKey);
+  if (cached) return JSON.parse(cached);
+
+  const lastRow = sheet.getLastRow();
+  const values  = lastRow >= 2 ? sheet.getRange(2, 1, lastRow - 1, 4).getValues() : [];
+
+  const deviceMap = {}, rollMap = {};
+  const norm = (val) => {
+    if (typeof val === "number") val = val.toFixed(0);
+    return String(val || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+  };
+
+  values.forEach((r, i) => {
+    const roll   = norm(r[0]);
+    const name   = String(r[2] || "").trim();
+    const device = norm(r[3]);
+    const rec    = { row: i + 2, roll: String(r[0] || "").trim(), name, device };
+    if (roll)   rollMap[roll]     = rec;
+    if (device) deviceMap[device] = rec;
+  });
+
+  const bundle = { rollMap, deviceMap };
+  cache.put(cacheKey, JSON.stringify(bundle), ATT_STUDENT_CACHE_TTL);
+  return bundle;
+}
+
+function attInvalidateStudentsCache_() {
+  CacheService.getScriptCache().remove("att_students_v1");
+}
+
+function attGetConfig_(key) {
+  const cache    = CacheService.getScriptCache();
+  const cacheKey = "att_config_v1";
+  let map        = cache.get(cacheKey);
+
+  if (map) {
+    map = JSON.parse(map);
+    return String(map[key] || "").trim();
+  }
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Config");
+  if (!sheet) return "";
+
+  map = {};
+  sheet.getDataRange().getValues().forEach(r => {
+    const k = String(r[0] || "").trim();
+    if (k) map[k] = String(r[1] || "").trim();
+  });
+
+  cache.put(cacheKey, JSON.stringify(map), ATT_CONFIG_CACHE_TTL);
+  return String(map[key] || "").trim();
+}
+
+function attSignature_(session_id, timestamp, token, secret) {
+  const raw  = session_id + "|" + timestamp + "|" + token + "|" + secret;
+  const hash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, raw, Utilities.Charset.UTF_8);
+  return hash.map(b => { const v = (b < 0 ? b + 256 : b).toString(16); return v.length === 1 ? "0" + v : v; }).join("");
 }
