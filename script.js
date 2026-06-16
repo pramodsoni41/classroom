@@ -343,17 +343,19 @@ function renderNotes(list) {
     return box.innerHTML = "<p>No notes uploaded.</p>";
   }
 
-  box.innerHTML = list.map(n => `
-    <div class="note-card">
+  box.innerHTML = list.map(n => {
+    const dateStr = n.Date ? new Date(n.Date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) : "";
+    const inner = `
       <div class="note-card-accent"></div>
       <div class="note-card-body">
         <h4>${n.Title}</h4>
         ${n.Description ? `<p>${n.Description}</p>` : ""}
-        ${n.Date ? `<p class="date">📅 ${n.Date}</p>` : ""}
-        ${n.Link ? `<a href="${n.Link}" target="_blank">📄 Open Notes</a>` : ""}
-      </div>
-    </div>
-  `).join("");
+        ${dateStr ? `<p class="date">📅 ${dateStr}</p>` : ""}
+      </div>`;
+    return n.Link
+      ? `<a href="${n.Link}" target="_blank" class="note-card">${inner}</a>`
+      : `<div class="note-card">${inner}</div>`;
+  }).join("");
 }
 
 
