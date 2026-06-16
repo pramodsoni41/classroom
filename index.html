@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="style.css">
 
   <!-- Google Identity Services -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://accounts.google.com/gsi/client" onload="initGoogleSignIn()" defer></script>
 
   <style>
     .google-btn-wrap {
@@ -139,9 +139,7 @@
     if (e.target === modal) modal.style.display = "none";
   };
 
-  // Render Google Sign-In button once GIS loads
-  window.addEventListener("load", function () {
-    if (typeof google === "undefined") return;
+  function initGoogleSignIn() {
     google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
       callback: handleGoogleCredential,
@@ -151,7 +149,7 @@
       document.getElementById("googleSignInBtn"),
       { theme: "outline", size: "large", width: 300, text: "signin_with" }
     );
-  });
+  }
 </script>
 
 </body>
