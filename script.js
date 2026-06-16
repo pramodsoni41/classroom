@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbye5N-IbJA6BMvGXwU6C_kzvvuWfs_EhGQ78PRef1DHl-v1xr2_tIFS-NlbYwHkRL0P/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbytAIOwi-7B713sTWoPMBXKkBQMOQAjbO5V3P-Emm4Crc-ZQROVTo49oVe-sQr79IXv/exec";
 const GOOGLE_CLIENT_ID = "589647151742-imup6ivhj023l40d9flhggpgg04juqbu.apps.googleusercontent.com";
 
 let dashboardData = null;
@@ -50,14 +50,13 @@ async function handleGoogleCredential(response) {
     }
     localStorage.setItem("device", deviceId);
 
-    // Store Google session (no password stored)
-    localStorage.setItem("student_roll",         data.student.RollNo);
-    localStorage.setItem("student_name",         data.student.Name);
-    localStorage.setItem("student_phone",        data.student.Phone || "");
-    localStorage.setItem("student_auth_type",    "google");
+    // Store Google session
+    localStorage.setItem("student_roll",          data.student.RollNo);
+    localStorage.setItem("student_name",          data.student.Name);
+    localStorage.setItem("student_phone",         data.student.Phone || "");
+    localStorage.setItem("student_auth_type",     "google");
     localStorage.setItem("student_session_token", data.sessionToken);
-    // Clear any leftover password session
-    localStorage.removeItem("student_pass");
+    localStorage.setItem("student_pass",          data.student.Password || "");
 
     redirect("dashboard.html");
 
@@ -406,6 +405,38 @@ box.innerHTML = list.map(a => `
 `).join("");
 }
 // ==========================
+// QUIZ PORTAL — class password gate
+// ==========================
+function openQuizPortal(cardId, quizURL, classPass) {
+  if (!classPass) {
+    window.open(quizURL, "_blank");
+    return;
+  }
+
+  const input = document.getElementById("cpInput_" + cardId);
+  const err   = document.getElementById("cpErr_"   + cardId);
+
+  if (!input) return;
+
+  if (input.value.trim() !== classPass.trim()) {
+    err.textContent = "Incorrect password. Try again.";
+    err.style.color = "red";
+    input.focus();
+    return;
+  }
+
+  // Password correct — open quiz with autostart flag
+  window.open(quizURL + "&autostart=1", "_blank");
+}
+
+function toggleClassPassInput(cardId, hasPass) {
+  if (!hasPass) return;
+  const row = document.getElementById("cpRow_" + cardId);
+  if (row) row.style.display = row.style.display === "none" ? "block" : "none";
+}
+
+
+// ==========================
 // QUIZZES
 // ==========================
 function renderQuizzes(list) {
@@ -429,7 +460,7 @@ function renderQuizzes(list) {
     CLOSED:   "#94a3b8"
   };
 
-  box.innerHTML = list.map(q => {
+  box.innerHTML = list.map((q, i) => {
     const color    = statusColors[q.Status] || "#94a3b8";
     const canStart = q.Status === "OPEN";
     const quizURL  = q.URL
@@ -437,7 +468,15 @@ function renderQuizzes(list) {
       + `roll=${encodeURIComponent(roll)}`
       + `&password=${encodeURIComponent(password)}`
       + `&name=${encodeURIComponent(name)}`
-      + `&phone=${encodeURIComponent(phone)}`;
+      + `&phone=${encodeURIComponent(phone)}`
+      + `&quizName=${encodeURIComponent(q.QuizName)}`
+      + `&correct=${encodeURIComponent(q.CorrectMarks)}`
+      + `&negative=${encodeURIComponent(q.NegativeMarks)}`
+      + `&closeDate=${encodeURIComponent(q.CloseDate)}`;
+
+    const cardId   = "quiz_" + i;
+    const hasPass  = !!(q.ClassPassword && q.ClassPassword.trim());
+    const classPass = q.ClassPassword || "";
 
     return `
       <div class="card">
@@ -446,12 +485,27 @@ function renderQuizzes(list) {
           <span style="background:${color};color:#fff;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:bold;white-space:nowrap;margin-left:8px;">${q.Status}</span>
         </div>
         <p class="date">Open: ${q.OpenDate || "—"} &nbsp;|&nbsp; Close: ${q.CloseDate || "—"}</p>
-        <p style="font-size:13px;color:#475569;margin:4px 0;">Marks: +${q.CorrectMarks} / ${q.NegativeMarks}</p>
-        ${canStart
-          ? `<a href="${quizURL}" target="_blank">Start Quiz</a>`
-          : `<button disabled style="margin-top:10px;opacity:0.45;cursor:not-allowed;width:auto;padding:9px 14px;font-size:14px;">
-               ${q.Status === "UPCOMING" ? "Not Open Yet" : "Closed"}
-             </button>`
+        <p style="font-size:13px;color:#475569;margin:4px 0;">
+          Marks: +${q.CorrectMarks} / ${q.NegativeMarks}
+          ${hasPass ? ' &nbsp;🔒 <span style="font-size:12px;">Class password required</span>' : ""}
+        </p>
+        ${canStart ? `
+          <button onclick="toggleClassPassInput('${cardId}', ${hasPass}); ${!hasPass ? "window.open('" + quizURL + "&autostart=1', '_blank')" : ""}"
+            style="margin-top:10px;width:auto;padding:9px 14px;">
+            Start Quiz
+          </button>
+          ${hasPass ? `
+          <div id="cpRow_${cardId}" style="display:none;margin-top:10px;">
+            <input id="cpInput_${cardId}" type="password" placeholder="Enter class password"
+              style="width:100%;padding:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:15px;margin-bottom:6px;"
+              onkeydown="if(event.key==='Enter') openQuizPortal('${cardId}','${quizURL}','${classPass.replace(/'/g,"\\'")}')">
+            <button onclick="openQuizPortal('${cardId}','${quizURL}','${classPass.replace(/'/g,"\\'")}')">Go →</button>
+            <p id="cpErr_${cardId}" style="margin:4px 0;font-size:13px;"></p>
+          </div>` : ""}
+        ` : `
+          <button disabled style="margin-top:10px;opacity:0.45;cursor:not-allowed;width:auto;padding:9px 14px;font-size:14px;">
+            ${q.Status === "UPCOMING" ? "Not Open Yet" : "Closed"}
+          </button>`
         }
       </div>
     `;
