@@ -113,6 +113,8 @@ const url =
     }
 localStorage.setItem("student_device", device);
 localStorage.setItem("student_browser", browser);
+// Sync device_id to "device" key so attendance page uses the same device fingerprint
+localStorage.setItem("device", deviceId);
     // Save session
     localStorage.setItem("student_roll", data.student.RollNo);
     localStorage.setItem("student_name", data.student.Name);
@@ -215,13 +217,18 @@ function selectCourse(course) {
   const attendance = filterByCourse(dashboardData.attendance, course);
   const notes = filterByCourse(dashboardData.notes, course);
   const announcements = dashboardData.announcements.filter(a =>
-  String(a.Course || "").trim().toUpperCase() === course.trim().toUpperCase()
-);
+    String(a.Course || "").trim().toUpperCase() === course.trim().toUpperCase()
+  );
+  const quizzes = (dashboardData.quizzes || []).filter(q => {
+    const qCourse = String(q.Course || "").trim().toUpperCase();
+    return qCourse === "" || qCourse === "ALL" || qCourse === course.trim().toUpperCase();
+  });
 
   renderMarks(marks);
   renderAttendance(attendance);
   renderNotes(notes);
   renderAnnouncements(announcements);
+  renderQuizzes(quizzes);
 }
 
 
@@ -353,27 +360,56 @@ box.innerHTML = list.map(a => `
 `).join("");
 }
 // ==========================
-// QUIZ BUTTON (WORKING VERSION)
+// QUIZZES
 // ==========================
-async function goToQuiz() {
+function renderQuizzes(list) {
+  const box = $("quizzes");
+  if (!box) return;
 
-  const roll = localStorage.getItem("student_roll");
-  const name = localStorage.getItem("student_name");
-  const password = localStorage.getItem("student_pass");
-  const phone = localStorage.getItem("student_phone");
+  if (!list || !list.length) {
+    box.innerHTML = "<p>No quizzes available for this course.</p>";
+    return;
+  }
 
+  const roll     = localStorage.getItem("student_roll") || "";
+  const password = localStorage.getItem("student_pass") || "";
+  const name     = localStorage.getItem("student_name") || "";
+  const phone    = localStorage.getItem("student_phone") || "";
 
+  const statusColors = {
+    OPEN:     "#10b981",
+    UPCOMING: "#f59e0b",
+    EXPIRED:  "#94a3b8",
+    CLOSED:   "#94a3b8"
+  };
 
-  // Open new tab directly (no popup)
-  const newTab = window.open("", "_blank");
+  box.innerHTML = list.map(q => {
+    const color    = statusColors[q.Status] || "#94a3b8";
+    const canStart = q.Status === "OPEN";
+    const quizURL  = q.URL
+      + (q.URL.includes("?") ? "&" : "?")
+      + `roll=${encodeURIComponent(roll)}`
+      + `&password=${encodeURIComponent(password)}`
+      + `&name=${encodeURIComponent(name)}`
+      + `&phone=${encodeURIComponent(phone)}`;
 
-  const quizURL =
-    `https://pramodsoni.in/Quiz/?roll=${encodeURIComponent(roll)}`
-    + `&password=${encodeURIComponent(password)}`
-    + `&name=${encodeURIComponent(name || "")}`
-    + `&phone=${encodeURIComponent(phone || "")}`;
-
-  newTab.location.href = quizURL;
+    return `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <h4 style="margin:0;flex:1;">${q.QuizName}</h4>
+          <span style="background:${color};color:#fff;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:bold;white-space:nowrap;margin-left:8px;">${q.Status}</span>
+        </div>
+        <p class="date">Open: ${q.OpenDate || "—"} &nbsp;|&nbsp; Close: ${q.CloseDate || "—"}</p>
+        <p style="font-size:13px;color:#475569;margin:4px 0;">Marks: +${q.CorrectMarks} / ${q.NegativeMarks}</p>
+        ${canStart
+          ? `<a href="${quizURL}" target="_blank">Start Quiz</a>`
+          : `<button disabled style="margin-top:10px;opacity:0.45;cursor:not-allowed;width:auto;padding:9px 14px;font-size:14px;">
+               ${q.Status === "UPCOMING" ? "Not Open Yet" : "Closed"}
+             </button>`
+        }
+      </div>
+    `;
+  }).join("");
 }
 function fetchJSONP(url) {
   return new Promise((resolve, reject) => {

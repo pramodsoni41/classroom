@@ -17,8 +17,8 @@
 
 <div class="header-actions">
 
-  <button onclick="goToQuiz()" class="quiz-btn">
-    Quiz
+  <button onclick="document.getElementById('quizSection').scrollIntoView({behavior:'smooth'})" class="quiz-btn">
+    Quizzes
   </button>
 
   <button onclick="openPasswordModal()" class="change-pass-btn">
@@ -74,6 +74,13 @@
       <p>Loading announcements...</p>
     </div>
   </section>
+<section class="section" id="quizSection">
+  <h3>Quizzes</h3>
+  <div id="quizzes" class="grid">
+    <p>Loading quizzes...</p>
+  </div>
+</section>
+
 <section class="section">
   <h3>Student Message / Concern</h3>
 
