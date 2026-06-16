@@ -495,11 +495,13 @@ function dashboard(e) {
   );
 
   const filteredNotes = notes.filter(r =>
-    courses.includes(String(r.Course || "").trim())
+    courses.includes(String(r.Course || "").trim()) &&
+    String(r.Live || "").trim().toLowerCase() === "yes"
   );
 
   const filteredAnnouncements = announcements.filter(r =>
-    courses.includes(String(r.Course || "").trim())
+    courses.includes(String(r.Course || "").trim()) &&
+    String(r.Live || "").trim().toLowerCase() === "yes"
   );
 
   const quizConfigSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("QuizConfig");
