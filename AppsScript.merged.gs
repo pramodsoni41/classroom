@@ -47,6 +47,17 @@ function doGet(e) {
     return jsonOutput(submitMessage(e), callback);
   }
 
+  /* Quiz — GET/JSONP (POST redirect strips the body, so quiz reads from URL params) */
+  if (action === "getQuizMeta")  return jsonOutput(quizMeta_({ quizId: e.parameter.quizId }), callback);
+  if (action === "startQuiz")    return jsonOutput(quizStart_({
+    sessionToken:  e.parameter.sessionToken  || "",
+    roll:          e.parameter.roll          || "",
+    password:      e.parameter.password      || "",
+    classPassword: e.parameter.classPassword || "",
+    quizId:        e.parameter.quizId        || ""
+  }), callback);
+  if (action === "getQuestions") return jsonOutput(quizGetQuestions_({ sessionToken: e.parameter.sessionToken || "" }), callback);
+
   /* Attendance — JSONP GET */
   const type = String(e.parameter.type || "").trim().toLowerCase();
   if (type === "get_admin_pass")  return jsonOutput({ status: "success", pass: attGetConfig_("admin_pass") || "admin123" }, callback);
