@@ -23,7 +23,10 @@ const SHEET_LOGIN_LOGS    = "LoginLogs";
 const QUIZ_SESSION_PREFIX  = "quizsess_";
 const QUIZ_SESSION_TTL_SEC = 6 * 60 * 60;
 
-/* Attendance QR config */
+/* Attendance QR config — these are FALLBACK defaults.
+   The live values come from the Config sheet keys "qr_validity_sec" and
+   "qr_grace_sec" (see attQrValiditySec_ / attQrGraceSec_). Edit the sheet,
+   not this file, to change the QR lifetime. */
 const ATT_QR_VALIDITY_SEC   = 40;
 const ATT_QR_GRACE_SEC      = 10;
 const ATT_QR_CACHE_TTL_SEC  = 120;
@@ -60,7 +63,8 @@ function doGet(e) {
 
   /* Attendance — JSONP GET */
   const type = String(e.parameter.type || "").trim().toLowerCase();
-  if (type === "get_admin_pass")  return jsonOutput({ status: "success", pass: attGetConfig_("admin_pass") || "admin123" }, callback);
+  /* NOTE: there is deliberately no "get_admin_pass" route. The admin password is
+     never sent to a client — attGenerateQR_ verifies it server-side instead. */
   if (type === "get_sessions")    return jsonOutput({ status: "success", sessions: attGetSessions_() }, callback);
   if (type === "generate_qr")     return jsonOutput(attGenerateQR_(e.parameter), callback);
   if (type === "mark_attendance")  return jsonOutput(attMarkAttendance_(e.parameter), callback);
@@ -673,6 +677,11 @@ function jsonOutput(obj, callback) {
    ============================================================ */
 
 function attGenerateQR_(params) {
+  /* Admin password is verified HERE, server-side. It is never sent to a client. */
+  const required = String(attGetConfig_("admin_pass") || "").trim();
+  const supplied = String(params.admin_pass || "").trim();
+  if (!required || supplied !== required) return { status: "bad_admin_pass" };
+
   const session_id   = String(params.session_id || "1").trim();
   const secret       = attGetConfig_("secret_key");
   const timestampSec = Math.floor(Date.now() / 1000);
@@ -691,8 +700,8 @@ function attGenerateQR_(params) {
     status:       "success",
     qr_payload:   qrString,
     server_time:  Date.now(),
-    validity_sec: ATT_QR_VALIDITY_SEC,
-    grace_sec:    ATT_QR_GRACE_SEC
+    validity_sec: attQrValiditySec_(),
+    grace_sec:    attQrGraceSec_()
   };
 }
 
@@ -713,7 +722,7 @@ function attMarkAttendance_(data) {
       return { status: "error", message: "Incomplete parameters" };
 
     if (qrAge < 0)                                  return { status: "invalid_time" };
-    if (qrAge > (ATT_QR_VALIDITY_SEC + ATT_QR_GRACE_SEC)) return { status: "qr_stale" };
+    if (qrAge > (attQrValiditySec_() + attQrGraceSec_())) return { status: "qr_stale" };
     if (qrAge > 600)                                return { status: "expired" };
 
     const secret      = attGetConfig_("secret_key");
@@ -870,6 +879,21 @@ function attGetStudentsBundle_(sheet) {
 
 function attInvalidateStudentsCache_() {
   CacheService.getScriptCache().remove("att_students_v1");
+}
+
+/* QR lifetime, read from the Config sheet with a safe fallback + sane bounds */
+function attQrValiditySec_() {
+  const v = parseInt(attGetConfig_("qr_validity_sec"), 10);
+  if (isNaN(v) || v <= 0) return ATT_QR_VALIDITY_SEC;
+  return Math.min(Math.max(v, 5), 3600);   // clamp 5s..1h
+}
+
+function attQrGraceSec_() {
+  const raw = attGetConfig_("qr_grace_sec");
+  if (raw === "") return ATT_QR_GRACE_SEC;   // key absent → default
+  const v = parseInt(raw, 10);
+  if (isNaN(v) || v < 0) return ATT_QR_GRACE_SEC;
+  return Math.min(v, 300);   // clamp 0..5min
 }
 
 function attGetConfig_(key) {
