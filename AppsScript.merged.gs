@@ -765,15 +765,7 @@ function attMarkAttendance_(data) {
       foundMatch   = true;
 
       if (deviceChanged) {
-        const lk = LockService.getScriptLock();
-        try {
-          if (lk.tryLock(2000)) {
-            const prev = Number(studentsSheet.getRange(matchedRow, 6).getValue() || 0);
-            studentsSheet.getRange(matchedRow, 5).setValue("⚠️ Device Changed");
-            studentsSheet.getRange(matchedRow, 6).setValue(prev + 1);
-            studentsSheet.getRange(matchedRow, 7).setValue(device_id);
-          }
-        } finally { try { lk.releaseLock(); } catch(_) {} }
+        attFlagDeviceChange_(studentsSheet, matchedRow, device_id, bundle);
       }
     }
 
@@ -790,7 +782,8 @@ function attMarkAttendance_(data) {
           studentsSheet.getRange(matchedRow, devColIdx).setValue(device_id);
           attInvalidateStudentsCache_();
         } else if (existing !== normDevice) {
-          return attDeviceMismatch_(studentsSheet, matchedRow, device_id);
+          attFlagDeviceChange_(studentsSheet, matchedRow, device_id, bundle, false);
+          return { status: "device_already_registered" };
         }
       } finally { try { lk.releaseLock(); } catch(_) {} }
     }
@@ -822,12 +815,26 @@ function attMarkAttendance_(data) {
   }
 }
 
-function attDeviceMismatch_(sheet, row, device_id) {
-  const prev = Number(sheet.getRange(row, 6).getValue() || 0);
-  sheet.getRange(row, 5).setValue("⚠️ Device Changed");
-  sheet.getRange(row, 6).setValue(prev + 1);
-  sheet.getRange(row, 7).setValue(device_id);
-  return { status: "device_already_registered" };
+/* Flag a device change WITHOUT corrupting Phone/Name/Course.
+   Writes only to columns located by header name:
+     - DeviceStatus      (optional) → "⚠️ Device Changed"
+     - DeviceChangeCount (optional) → incremented
+     - DeviceID          → updated to the new device when updateDevice !== false
+   If the optional columns don't exist, they're simply skipped. */
+function attFlagDeviceChange_(sheet, row, device_id, bundle, updateDevice) {
+  const lk = LockService.getScriptLock();
+  try {
+    if (!lk.tryLock(2000)) return;
+    if (bundle.statusColIdx > 0) sheet.getRange(row, bundle.statusColIdx).setValue("⚠️ Device Changed");
+    if (bundle.countColIdx > 0) {
+      const prev = Number(sheet.getRange(row, bundle.countColIdx).getValue() || 0);
+      sheet.getRange(row, bundle.countColIdx).setValue(prev + 1);
+    }
+    if (updateDevice !== false && bundle.devColIdx > 0) {
+      sheet.getRange(row, bundle.devColIdx).setValue(device_id);
+      attInvalidateStudentsCache_();
+    }
+  } finally { try { lk.releaseLock(); } catch(_) {} }
 }
 
 function attGetOrCreateLog_(ss) {
@@ -852,7 +859,12 @@ function attGetStudentsBundle_(sheet) {
   const rollIdx  = headers.indexOf("RollNo");
   const nameIdx  = headers.indexOf("Name");
   const devIdx   = headers.indexOf("DeviceID");
-  const devColIdx = devIdx >= 0 ? devIdx + 1 : 0;  // 1-based for getRange, 0 = not found
+  // Optional anti-cheat tracking columns — only written to if they exist.
+  const statusIdx = headers.indexOf("DeviceStatus");
+  const countIdx  = headers.indexOf("DeviceChangeCount");
+  const devColIdx    = devIdx    >= 0 ? devIdx    + 1 : 0;  // 1-based for getRange, 0 = not found
+  const statusColIdx = statusIdx >= 0 ? statusIdx + 1 : 0;
+  const countColIdx  = countIdx  >= 0 ? countIdx  + 1 : 0;
 
   const deviceMap = {}, rollMap = {};
   const norm = (val) => {
@@ -872,7 +884,7 @@ function attGetStudentsBundle_(sheet) {
     if (device) deviceMap[device] = rec;
   }
 
-  const bundle = { rollMap, deviceMap, devColIdx };
+  const bundle = { rollMap, deviceMap, devColIdx, statusColIdx, countColIdx };
   cache.put(cacheKey, JSON.stringify(bundle), ATT_STUDENT_CACHE_TTL);
   return bundle;
 }
