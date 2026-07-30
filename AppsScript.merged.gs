@@ -23,6 +23,14 @@ const SHEET_LOGIN_LOGS    = "LoginLogs";
 const QUIZ_SESSION_PREFIX  = "quizsess_";
 const QUIZ_SESSION_TTL_SEC = 6 * 60 * 60;
 
+/* Login sessions.
+   CacheService is only a fast-path cache (max 6h, may evict early), so the
+   token is ALSO persisted in the "Tokens" sheet and stays valid for
+   GSESSION_DAYS. That keeps a student logged in on the same device for days. */
+const GSESSION_CACHE_TTL_SEC = 6 * 60 * 60;   // fast cache (Apps Script max)
+const GSESSION_DAYS          = 30;            // persistent session length
+const TOKENS_TAB             = "Tokens";      // columns: Token | RollNo | ExpiresAt
+
 /* Attendance QR config — these are FALLBACK defaults.
    The live values come from the Config sheet keys "qr_validity_sec" and
    "qr_grace_sec" (see attQrValiditySec_ / attQrGraceSec_). Edit the sheet,
@@ -251,8 +259,8 @@ function verifyClassroomAuth_(data) {
   let verifiedRoll = null;
 
   if (sessionToken) {
-    const cached = CacheService.getScriptCache().get("gsession_" + sessionToken);
-    if (cached) verifiedRoll = String(cached).trim();
+    const r = gsResolveToken_(sessionToken);
+    if (r) verifiedRoll = r;
   }
 
   if (!verifiedRoll && roll && password) {
@@ -425,7 +433,7 @@ function googleLogin(e) {
   }
 
   const sessionToken = Utilities.getUuid();
-  CacheService.getScriptCache().put("gsession_" + sessionToken, student.RollNo, 4 * 60 * 60);
+  gsPutSession_(sessionToken, student.RollNo);
 
   logStudentLogin_(student.RollNo, student.Name, "SUCCESS-GOOGLE", "", "", "", "", "", "", "", "Google Login");
 
@@ -441,6 +449,63 @@ function googleLogin(e) {
       Courses: courses
     }
   });
+}
+
+/* =========================
+   PERSISTENT LOGIN SESSIONS  (Tokens sheet)
+========================= */
+
+function gsTokensSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(TOKENS_TAB);
+  if (!sh) {
+    sh = ss.insertSheet(TOKENS_TAB);
+    sh.appendRow(["Token", "RollNo", "ExpiresAt"]);
+  }
+  return sh;
+}
+
+/* Store a new session: fast cache + persistent sheet row (valid GSESSION_DAYS). */
+function gsPutSession_(token, roll) {
+  CacheService.getScriptCache().put("gsession_" + token, String(roll), GSESSION_CACHE_TTL_SEC);
+  const sh = gsTokensSheet_();
+  const expires = new Date(Date.now() + GSESSION_DAYS * 86400 * 1000);
+  sh.appendRow([token, String(roll), expires]);
+  gsPruneExpired_(sh);
+}
+
+/* Resolve a token to a RollNo. Cache first; on miss, the persistent sheet.
+   Returns null if unknown or expired. */
+function gsResolveToken_(token) {
+  token = String(token || "").trim();
+  if (!token) return null;
+
+  const cache  = CacheService.getScriptCache();
+  const cached = cache.get("gsession_" + token);
+  if (cached) return String(cached).trim();
+
+  const sh   = gsTokensSheet_();
+  const data = sh.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === token) {
+      const exp = data[i][2] ? new Date(data[i][2]).getTime() : 0;
+      if (exp && exp < Date.now()) return null;          // expired
+      const roll = String(data[i][1]).trim();
+      cache.put("gsession_" + token, roll, GSESSION_CACHE_TTL_SEC);   // rewarm cache
+      return roll;
+    }
+  }
+  return null;
+}
+
+/* Drop expired rows so the Tokens sheet stays small. Runs on login (rare). */
+function gsPruneExpired_(sh) {
+  const data = sh.getDataRange().getValues();
+  const now  = Date.now();
+  for (let i = data.length - 1; i >= 1; i--) {
+    const exp = data[i][2] ? new Date(data[i][2]).getTime() : 0;
+    if (exp && exp < now) sh.deleteRow(i + 1);
+  }
 }
 
 /* =========================
@@ -486,8 +551,8 @@ function dashboard(e) {
   let studentRollNo = null;
 
   if (sessionToken) {
-    const cached = CacheService.getScriptCache().get("gsession_" + sessionToken);
-    if (cached === roll) { verified = true; studentRollNo = roll; }
+    const r = gsResolveToken_(sessionToken);
+    if (r === roll) { verified = true; studentRollNo = roll; }
   } else if (password) {
     const students = getStudentsData_();
     const match = students.find(row =>
