@@ -964,28 +964,23 @@ function markPresent_(data) {
     const lon = String(data.lon || "").trim();
     if (!lat || !lon) return { status: "no_gps" };
 
-    // 5. Duplicate check — already marked this course today / within window?
+    // 5. Note if already marked today/within window — but ALLOW the mark anyway
     const ss         = SpreadsheetApp.getActiveSpreadsheet();
     const logSheet   = attGetOrCreateLog_(ss);
     const windowHrs  = parseFloat(attGetConfig_("attendance_window_hours")) || 0;
-    if (attMarkedRecently_(logSheet, course, roll, windowHrs)) {
-      return { status: "success", name: name, session: course, duplicate: true };
-    }
+    const already    = attMarkedRecently_(logSheet, course, roll, windowHrs);
 
-    // 6. Write the record (SessionID = course)
+    // 6. Always write the record (duplicates allowed). SessionID = course.
     const device_id = String(data.device_id || "").trim();
     const row = [new Date(), roll, course, "DIRECT", Math.floor(Date.now() / 1000), "0s", device_id, name, lat, lon];
 
     const wl = LockService.getScriptLock();
     if (!wl.tryLock(3000)) return { status: "busy" };
     try {
-      if (attMarkedRecently_(logSheet, course, roll, windowHrs)) {   // re-check under lock
-        return { status: "success", name: name, session: course, duplicate: true };
-      }
       logSheet.getRange(logSheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
     } finally { try { wl.releaseLock(); } catch (_) {} }
 
-    return { status: "success", name: name, session: course, duplicate: false };
+    return { status: "success", name: name, session: course, duplicate: already };
 
   } catch (err) {
     return { status: "error", message: err && err.message ? err.message : String(err) };

@@ -257,12 +257,11 @@ function renderMarkAttendance(course) {
 
   section.style.display = "";
   $("attSessionLabel").innerText = `Course: ${course}`;
+  $("markAttendanceBtn").disabled = false;   // duplicates allowed — never lock
 
   if (markedMap[course]) {
-    $("markAttendanceBtn").disabled = true;
-    setMessage($("attendanceStatus"), "✅ Already marked today for " + course + ".", "#16a34a");
+    setMessage($("attendanceStatus"), "ℹ️ Already marked today for " + course + " — you can mark again.", "#0891b2");
   } else {
-    $("markAttendanceBtn").disabled = false;
     $("attendanceStatus").innerText = "";
   }
 }
@@ -330,10 +329,10 @@ async function markAttendance() {
     if (data.status === "success") {
       setMessage(status,
         data.duplicate
-          ? `✅ Already marked today for ${course}`
+          ? `✅ Marked again for ${course} (already marked today)`
           : `✅ Present — ${data.name} (${course})`,
         "#16a34a");
-      btn.disabled = true;   // keep disabled after success
+      btn.disabled = false;   // duplicates allowed — stay clickable
       if (dashboardData && dashboardData.attendanceMarked) dashboardData.attendanceMarked[course] = true;
     } else if (data.status === "no_gps") {
       setMessage(status, "❌ Location missing. Try again.", "#ef4444");
