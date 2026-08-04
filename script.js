@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbyeu9WPUQqrtuxezHJ6M-dxgHwAqXHF8doSFdbnq4mGD6sq7a1BeVHp3LBy883dS1v1/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxOD9kZJmk3uJtPHb-DiVWncREfAs7OLWATUMRkL3PV0FEhDOdJjEphbyvqFUGoY43I/exec";
 const GOOGLE_CLIENT_ID = "589647151742-imup6ivhj023l40d9flhggpgg04juqbu.apps.googleusercontent.com";
 
 let dashboardData = null;
