@@ -61,6 +61,7 @@ function doGet(e) {
   if (action === "markPresent") {
     return jsonOutput(markPresent_({
       sessionToken: e.parameter.sessionToken || "",
+      course:       e.parameter.course       || "",
       device_id:    e.parameter.device_id    || "",
       lat:          e.parameter.lat          || "",
       lon:          e.parameter.lon          || ""
