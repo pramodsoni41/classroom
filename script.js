@@ -358,6 +358,9 @@ async function markAttendance() {
   //    /macros/echo redirect intermittently fails CORS, which made fetch throw a false
   //    "Network error" even though the row WAS written server-side. JSONP is redirect/
   //    CORS-immune (same path submitStudentMessage uses reliably).
+  //    SINGLE attempt (jsonpOnce, no retry) with a generous timeout: markPresent is a
+  //    WRITE, and retrying a slow-but-successful call duplicated the attendance row
+  //    (each retry re-writes). One press must = at most one write.
   setMessage(status, "Marking...", "#64748b");
 
   try {
@@ -367,7 +370,7 @@ async function markAttendance() {
       + `&device_id=${encodeURIComponent(device)}`
       + `&lat=${encodeURIComponent(lat)}`
       + `&lon=${encodeURIComponent(lon)}`;
-    const data = await jsonpGet(url);
+    const data = await jsonpOnce(url, 20000);
 
     if (data.status === "success") {
       setMessage(status,
