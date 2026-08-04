@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbxOD9kZJmk3uJtPHb-DiVWncREfAs7OLWATUMRkL3PV0FEhDOdJjEphbyvqFUGoY43I/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzNeb-QBCQHTaKTlClX3EVg_p6jpcoHFgUn_LS4MNUtabZ4soffBaSnaHBFqaHUkbNS/exec";
 const GOOGLE_CLIENT_ID = "589647151742-imup6ivhj023l40d9flhggpgg04juqbu.apps.googleusercontent.com";
 
 let dashboardData = null;
@@ -27,14 +27,34 @@ function redirect(page) {
 
 /* Fetch JSON with retry — Apps Script's 302→googleusercontent.com/macros/echo
    redirect intermittently 404s. Retrying with a short backoff self-heals it. */
+/* JSONP GET — a <script> tag with ?callback=. Apps Script returns cb({...}).
+   Immune to the /macros/echo 404 that plagues fetch() against Apps Script. */
+function jsonpGet(url, timeoutMs = 12000) {
+  return new Promise((resolve, reject) => {
+    const cb  = "ccb_" + Date.now() + "_" + Math.floor(Math.random() * 1e6);
+    const sep = url.includes("?") ? "&" : "?";
+    const script = document.createElement("script");
+    const timer  = setTimeout(() => { cleanup(); reject(new Error("timeout")); }, timeoutMs);
+    function cleanup() { clearTimeout(timer); try { delete window[cb]; } catch (_) {} script.remove(); }
+    window[cb] = (data) => { cleanup(); resolve(data); };
+    script.onerror = () => { cleanup(); reject(new Error("network")); };
+    script.src = url + sep + "callback=" + cb;
+    document.body.appendChild(script);
+  });
+}
+
 async function fetchJSON(url, tries = 3) {
   let lastErr;
   for (let i = 0; i < tries; i++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10000);   // 10s hard cap per try
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(timer);
       if (!res.ok) throw new Error("HTTP " + res.status);
       return await res.json();
     } catch (err) {
+      clearTimeout(timer);
       lastErr = err;
       if (i < tries - 1) await new Promise(r => setTimeout(r, 600 * (i + 1)));
     }
@@ -324,7 +344,7 @@ async function markAttendance() {
       + `&device_id=${encodeURIComponent(device)}`
       + `&lat=${encodeURIComponent(lat)}`
       + `&lon=${encodeURIComponent(lon)}`;
-    const data = await fetchJSON(url);
+    const data = await jsonpGet(url);
 
     if (data.status === "success") {
       setMessage(status,

@@ -938,6 +938,31 @@ function attFlagDeviceChange_(sheet, row, device_id, bundle, updateDevice) {
    SessionID column stores the COURSE code. Writes to AttendanceLogs.
    ============================================================ */
 function markPresent_(data) {
+  const res = markPresentCore_(data);
+  try { attnDebugLog_(data, res); } catch (_) {}
+  return res;
+}
+
+/* Logs EVERY attempt so we can see exactly what the server received + returned.
+   Tab "AttnDebug" is auto-created. Delete the tab once debugging is done. */
+function attnDebugLog_(data, res) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName("AttnDebug");
+  if (!sh) {
+    sh = ss.insertSheet("AttnDebug");
+    sh.appendRow(["Time", "TokenPresent", "Course", "Lat", "Lon", "Result"]);
+  }
+  sh.appendRow([
+    new Date(),
+    data && data.sessionToken ? "yes" : "no",
+    (data && data.course) || "",
+    (data && data.lat) || "",
+    (data && data.lon) || "",
+    (res && res.status ? res.status : "?") + (res && res.duplicate ? " (dup)" : "")
+  ]);
+}
+
+function markPresentCore_(data) {
   try {
     // 1. Must be logged into the classroom portal
     const roll = gsResolveToken_(String(data.sessionToken || "").trim());
