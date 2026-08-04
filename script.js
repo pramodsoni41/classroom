@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbyiV_E6n_Nu62-WcSlRnnU6VUPXHj891UKIsCVJ6CjuoarQB8VRqqqzRCfrZEPhfxXO/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwHEH1HXWnFo5Jyhv1ViWMbPJQBLxYLr9onf6Z2WH55FkENSsAd39GArtlFYoI4KD1V/exec";
 const GOOGLE_CLIENT_ID = "589647151742-imup6ivhj023l40d9flhggpgg04juqbu.apps.googleusercontent.com";
 
 let dashboardData = null;
@@ -207,6 +207,7 @@ async function loadDashboard() {
 
     renderStudent(data.student);
     renderCourses(data.student.Courses);
+    renderMarkAttendance(data);
 
     if (data.student.Courses?.length) {
       selectCourse(data.student.Courses[0]);
@@ -224,6 +225,73 @@ async function loadDashboard() {
 // ==========================
 function renderStudent(student) {
   $("studentInfo").innerText = `${student.Name} | ${student.RollNo}`;
+}
+
+// ==========================
+// MARK ATTENDANCE (direct — gated by Config sheet)
+// ==========================
+function renderMarkAttendance(data) {
+  const section = $("markAttendanceSection");
+  if (!section) return;
+
+  if (data.attendanceOpen && data.activeSession) {
+    section.style.display = "";
+    $("attSessionLabel").innerText = `Session: ${data.activeSession}`;
+    if (data.attendanceMarked) {
+      $("markAttendanceBtn").disabled = true;
+      setMessage($("attendanceStatus"), "✅ Already marked for this session.", "#16a34a");
+    } else {
+      $("markAttendanceBtn").disabled = false;
+      $("attendanceStatus").innerText = "";
+    }
+  } else {
+    section.style.display = "none";
+  }
+}
+
+async function markAttendance() {
+  const btn   = $("markAttendanceBtn");
+  const status = $("attendanceStatus");
+  const sessionToken = localStorage.getItem("student_session_token");
+  const device = localStorage.getItem("device") || "";
+
+  if (!sessionToken) {
+    setMessage(status, "Session expired. Please log in again.", "#ef4444");
+    return;
+  }
+
+  btn.disabled = true;
+  setMessage(status, "Marking...", "#64748b");
+
+  try {
+    const url = `${API_URL}?action=markPresent`
+      + `&sessionToken=${encodeURIComponent(sessionToken)}`
+      + `&device_id=${encodeURIComponent(device)}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    if (data.status === "success") {
+      setMessage(status,
+        data.duplicate
+          ? `✅ Already marked for ${data.session}`
+          : `✅ Present — ${data.name} (${data.session})`,
+        "#16a34a");
+      btn.disabled = true;   // keep disabled after success
+    } else if (data.status === "closed") {
+      setMessage(status, "Attendance is closed right now.", "#f59e0b");
+      $("markAttendanceSection").style.display = "none";
+    } else if (data.status === "no_session") {
+      setMessage(status, "No active session set by instructor.", "#f59e0b");
+    } else if (data.status === "unauthorized") {
+      setMessage(status, "Session expired. Please log in again.", "#ef4444");
+    } else {
+      setMessage(status, data.message || "Could not mark attendance.", "#ef4444");
+      btn.disabled = false;
+    }
+  } catch (err) {
+    setMessage(status, "Network error. Try again.", "#ef4444");
+    btn.disabled = false;
+  }
 }
 
 

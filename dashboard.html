@@ -40,6 +40,23 @@
     </div>
   </section>
 
+  <!-- Mark Attendance — shown only when the instructor opens attendance in Config -->
+  <section class="section" id="markAttendanceSection" style="display:none;">
+    <div class="section-header">
+      <div class="section-icon" style="background:#ecfdf5;">✅</div>
+      <h3>Mark Attendance</h3>
+    </div>
+    <div class="card" style="text-align:center;">
+      <p id="attSessionLabel" style="margin:0 0 14px;color:#475569;font-size:15px;"></p>
+      <button id="markAttendanceBtn" onclick="markAttendance()"
+        style="background:#16a34a;color:#fff;border:none;padding:14px 28px;border-radius:10px;
+               font-size:16px;font-weight:700;cursor:pointer;">
+        ✅ I'm Present
+      </button>
+      <p id="attendanceStatus" style="margin:14px 0 0;font-size:14px;font-weight:600;min-height:20px;"></p>
+    </div>
+  </section>
+
   <section class="section">
     <div class="section-header">
       <div class="section-icon" style="background:#f0fdf4;">📊</div>

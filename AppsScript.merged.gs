@@ -58,6 +58,15 @@ function doGet(e) {
     return jsonOutput(submitMessage(e), callback);
   }
 
+  if (action === "markPresent") {
+    return jsonOutput(markPresent_({
+      sessionToken: e.parameter.sessionToken || "",
+      device_id:    e.parameter.device_id    || "",
+      lat:          e.parameter.lat          || "",
+      lon:          e.parameter.lon          || ""
+    }), callback);
+  }
+
   /* Quiz — GET/JSONP (POST redirect strips the body, so quiz reads from URL params) */
   if (action === "getQuizMeta")  return jsonOutput(quizMeta_({ quizId: e.parameter.quizId }), callback);
   if (action === "startQuiz")    return jsonOutput(quizStart_({
@@ -603,6 +612,15 @@ function dashboard(e) {
   const quizConfigSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("QuizConfig");
   const quizzes = quizConfigSheet ? getQuizList_(courses, quizConfigSheet) : [];
 
+  // Direct-attendance state (Config-driven) for the "I'm Present" button
+  const attOpen_        = String(attGetConfig_("attendance_open") || "").trim().toLowerCase() === "yes";
+  const activeSession_  = String(attGetConfig_("active_session") || "").trim();
+  let attMarked_ = false;
+  if (attOpen_ && activeSession_) {
+    const logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("AttendanceLogs");
+    if (logSheet) attMarked_ = attAlreadyMarked_(logSheet, activeSession_, roll);
+  }
+
   return jsonOutput({
     status: "success",
     student: {
@@ -611,6 +629,9 @@ function dashboard(e) {
       Phone:  student.Phone || "NA",
       Courses: courses
     },
+    attendanceOpen: attOpen_,
+    activeSession:  activeSession_,
+    attendanceMarked: attMarked_,
     marks:       studentMarks,
     attendance:  studentAttendance,
     notes:       filteredNotes,
@@ -900,6 +921,71 @@ function attFlagDeviceChange_(sheet, row, device_id, bundle, updateDevice) {
       attInvalidateStudentsCache_();
     }
   } finally { try { lk.releaseLock(); } catch(_) {} }
+}
+
+/* ============================================================
+   DIRECT ATTENDANCE — "I'm Present" button on the dashboard.
+   Gated by Config: attendance_open (Yes/No) + active_session.
+   Writes to the same AttendanceLogs tab the QR flow uses.
+   ============================================================ */
+function markPresent_(data) {
+  try {
+    // 1. Must be logged into the classroom portal
+    const roll = gsResolveToken_(String(data.sessionToken || "").trim());
+    if (!roll) return { status: "unauthorized" };
+
+    // 2. Attendance must be open (Config sheet)
+    if (String(attGetConfig_("attendance_open") || "").trim().toLowerCase() !== "yes") {
+      return { status: "closed" };
+    }
+    const session_id = String(attGetConfig_("active_session") || "").trim();
+    if (!session_id) return { status: "no_session" };
+
+    // 3. Resolve the student name
+    const students = getStudentsData_();
+    const student  = students.find(r => String(r.RollNo || "").trim() === roll);
+    if (!student) return { status: "error", message: "Student not found" };
+    const name = String(student.Name || "").trim();
+
+    // 4. One mark per student per session
+    const ss       = SpreadsheetApp.getActiveSpreadsheet();
+    const logSheet = attGetOrCreateLog_(ss);
+    if (attAlreadyMarked_(logSheet, session_id, roll)) {
+      return { status: "success", name: name, session: session_id, duplicate: true };
+    }
+
+    // 5. Write the record
+    const device_id = String(data.device_id || "").trim();
+    const lat       = String(data.lat || "").trim();
+    const lon       = String(data.lon || "").trim();
+    const row = [new Date(), roll, session_id, "DIRECT", Math.floor(Date.now() / 1000), "0s", device_id, name, lat, lon];
+
+    const wl = LockService.getScriptLock();
+    if (!wl.tryLock(3000)) return { status: "busy" };
+    try {
+      // Re-check inside the lock to avoid a double-click race
+      if (attAlreadyMarked_(logSheet, session_id, roll)) {
+        return { status: "success", name: name, session: session_id, duplicate: true };
+      }
+      logSheet.getRange(logSheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
+    } finally { try { wl.releaseLock(); } catch (_) {} }
+
+    return { status: "success", name: name, session: session_id, duplicate: false };
+
+  } catch (err) {
+    return { status: "error", message: err && err.message ? err.message : String(err) };
+  }
+}
+
+/* True if (session_id, roll) is already in AttendanceLogs (cols B=StudentID, C=SessionID) */
+function attAlreadyMarked_(logSheet, session_id, roll) {
+  const last = logSheet.getLastRow();
+  if (last < 2) return false;
+  const vals = logSheet.getRange(2, 2, last - 1, 2).getValues();  // B=StudentID, C=SessionID
+  for (let i = 0; i < vals.length; i++) {
+    if (String(vals[i][0]).trim() === roll && String(vals[i][1]).trim() === session_id) return true;
+  }
+  return false;
 }
 
 function attGetOrCreateLog_(ss) {
