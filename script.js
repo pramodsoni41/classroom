@@ -27,9 +27,8 @@ function redirect(page) {
 
 /* Fetch JSON with retry — Apps Script's 302→googleusercontent.com/macros/echo
    redirect intermittently 404s. Retrying with a short backoff self-heals it. */
-/* JSONP GET — a <script> tag with ?callback=. Apps Script returns cb({...}).
-   Immune to the /macros/echo 404 that plagues fetch() against Apps Script. */
-function jsonpGet(url, timeoutMs = 12000) {
+/* One JSONP attempt — a <script> tag with ?callback=. Apps Script returns cb({...}). */
+function jsonpOnce(url, timeoutMs) {
   return new Promise((resolve, reject) => {
     const cb  = "ccb_" + Date.now() + "_" + Math.floor(Math.random() * 1e6);
     const sep = url.includes("?") ? "&" : "?";
@@ -41,6 +40,21 @@ function jsonpGet(url, timeoutMs = 12000) {
     script.src = url + sep + "callback=" + cb;
     document.body.appendChild(script);
   });
+}
+
+/* JSONP with retry — Apps Script's /macros/echo intermittently 404s, which fires
+   script.onerror. Retrying with backoff gets through. */
+async function jsonpGet(url, tries = 4) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await jsonpOnce(url, 9000);
+    } catch (err) {
+      lastErr = err;
+      if (i < tries - 1) await new Promise(r => setTimeout(r, 500 * (i + 1)));
+    }
+  }
+  throw lastErr;
 }
 
 async function fetchJSON(url, tries = 3) {
