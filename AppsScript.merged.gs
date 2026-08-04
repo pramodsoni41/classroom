@@ -612,13 +612,20 @@ function dashboard(e) {
   const quizConfigSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("QuizConfig");
   const quizzes = quizConfigSheet ? getQuizList_(courses, quizConfigSheet) : [];
 
-  // Direct-attendance state (Config-driven) for the "I'm Present" button
-  const attOpen_        = String(attGetConfig_("attendance_open") || "").trim().toLowerCase() === "yes";
-  const activeSession_  = String(attGetConfig_("active_session") || "").trim();
-  let attMarked_ = false;
-  if (attOpen_ && activeSession_) {
-    const logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("AttendanceLogs");
-    if (logSheet) attMarked_ = attAlreadyMarked_(logSheet, activeSession_, roll);
+  // Direct-attendance state (Config-driven) for the per-course "I'm Present" button.
+  // attendance_open = comma list of open courses. Show button only for the
+  // student's OWN courses that are open; mark map is per-course, per day/window.
+  const openCoursesRaw = attOpenCourses_();
+  const studentOpen_   = openCoursesRaw.filter(c =>
+    courses.map(x => x.toUpperCase()).includes(c.toUpperCase())
+  );
+  const attMarkedMap_ = {};
+  if (studentOpen_.length) {
+    const logSheet  = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("AttendanceLogs");
+    const windowHrs = parseFloat(attGetConfig_("attendance_window_hours")) || 0;
+    if (logSheet) {
+      studentOpen_.forEach(c => { attMarkedMap_[c] = attMarkedRecently_(logSheet, c, roll, windowHrs); });
+    }
   }
 
   return jsonOutput({
@@ -629,9 +636,8 @@ function dashboard(e) {
       Phone:  student.Phone || "NA",
       Courses: courses
     },
-    attendanceOpen: attOpen_,
-    activeSession:  activeSession_,
-    attendanceMarked: attMarked_,
+    attendanceOpenCourses: studentOpen_,
+    attendanceMarked:      attMarkedMap_,
     marks:       studentMarks,
     attendance:  studentAttendance,
     notes:       filteredNotes,
@@ -925,8 +931,11 @@ function attFlagDeviceChange_(sheet, row, device_id, bundle, updateDevice) {
 
 /* ============================================================
    DIRECT ATTENDANCE — "I'm Present" button on the dashboard.
-   Gated by Config: attendance_open (Yes/No) + active_session.
-   Writes to the same AttendanceLogs tab the QR flow uses.
+   Per-course. Config keys:
+     attendance_open           = comma list of OPEN course codes, e.g. "CE211,CE515"
+     attendance_window_hours   = (optional) rolling dedup window in hours.
+                                 If 0/blank, dedup is per CALENDAR DAY.
+   SessionID column stores the COURSE code. Writes to AttendanceLogs.
    ============================================================ */
 function markPresent_(data) {
   try {
@@ -934,59 +943,83 @@ function markPresent_(data) {
     const roll = gsResolveToken_(String(data.sessionToken || "").trim());
     if (!roll) return { status: "unauthorized" };
 
-    // 2. Attendance must be open (Config sheet)
-    if (String(attGetConfig_("attendance_open") || "").trim().toLowerCase() !== "yes") {
+    // 2. Course must be OPEN in Config
+    const course = String(data.course || "").trim();
+    if (!course) return { status: "closed" };
+    const openCourses = attOpenCourses_();
+    if (!openCourses.map(c => c.toUpperCase()).includes(course.toUpperCase())) {
       return { status: "closed" };
     }
-    const session_id = String(attGetConfig_("active_session") || "").trim();
-    if (!session_id) return { status: "no_session" };
 
-    // 3. Real GPS is mandatory (captured & stored, but never used to reject)
+    // 3. Student must be enrolled in that course
+    const students = getStudentsData_();
+    const student  = students.find(r => String(r.RollNo || "").trim() === roll);
+    if (!student) return { status: "error", message: "Student not found" };
+    const enrolled = getCourses_(student).map(c => c.toUpperCase());
+    if (!enrolled.includes(course.toUpperCase())) return { status: "not_enrolled" };
+    const name = String(student.Name || "").trim();
+
+    // 4. Real GPS is mandatory (captured & stored, never used to reject)
     const lat = String(data.lat || "").trim();
     const lon = String(data.lon || "").trim();
     if (!lat || !lon) return { status: "no_gps" };
 
-    // 4. Resolve the student name
-    const students = getStudentsData_();
-    const student  = students.find(r => String(r.RollNo || "").trim() === roll);
-    if (!student) return { status: "error", message: "Student not found" };
-    const name = String(student.Name || "").trim();
-
-    // 5. One mark per student per session
-    const ss       = SpreadsheetApp.getActiveSpreadsheet();
-    const logSheet = attGetOrCreateLog_(ss);
-    if (attAlreadyMarked_(logSheet, session_id, roll)) {
-      return { status: "success", name: name, session: session_id, duplicate: true };
+    // 5. Duplicate check — already marked this course today / within window?
+    const ss         = SpreadsheetApp.getActiveSpreadsheet();
+    const logSheet   = attGetOrCreateLog_(ss);
+    const windowHrs  = parseFloat(attGetConfig_("attendance_window_hours")) || 0;
+    if (attMarkedRecently_(logSheet, course, roll, windowHrs)) {
+      return { status: "success", name: name, session: course, duplicate: true };
     }
 
-    // 5. Write the record
+    // 6. Write the record (SessionID = course)
     const device_id = String(data.device_id || "").trim();
-    const row = [new Date(), roll, session_id, "DIRECT", Math.floor(Date.now() / 1000), "0s", device_id, name, lat, lon];
+    const row = [new Date(), roll, course, "DIRECT", Math.floor(Date.now() / 1000), "0s", device_id, name, lat, lon];
 
     const wl = LockService.getScriptLock();
     if (!wl.tryLock(3000)) return { status: "busy" };
     try {
-      // Re-check inside the lock to avoid a double-click race
-      if (attAlreadyMarked_(logSheet, session_id, roll)) {
-        return { status: "success", name: name, session: session_id, duplicate: true };
+      if (attMarkedRecently_(logSheet, course, roll, windowHrs)) {   // re-check under lock
+        return { status: "success", name: name, session: course, duplicate: true };
       }
       logSheet.getRange(logSheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
     } finally { try { wl.releaseLock(); } catch (_) {} }
 
-    return { status: "success", name: name, session: session_id, duplicate: false };
+    return { status: "success", name: name, session: course, duplicate: false };
 
   } catch (err) {
     return { status: "error", message: err && err.message ? err.message : String(err) };
   }
 }
 
-/* True if (session_id, roll) is already in AttendanceLogs (cols B=StudentID, C=SessionID) */
-function attAlreadyMarked_(logSheet, session_id, roll) {
+/* Parse Config "attendance_open" into an array of open course codes. */
+function attOpenCourses_() {
+  return String(attGetConfig_("attendance_open") || "")
+    .split(",").map(s => s.trim()).filter(Boolean);
+}
+
+/* True if this student already marked THIS course recently.
+   windowHours > 0 → within that many hours; otherwise → same calendar day. */
+function attMarkedRecently_(logSheet, course, roll, windowHours) {
   const last = logSheet.getLastRow();
   if (last < 2) return false;
-  const vals = logSheet.getRange(2, 2, last - 1, 2).getValues();  // B=StudentID, C=SessionID
+  const vals = logSheet.getRange(2, 1, last - 1, 3).getValues();  // A=DateTime, B=StudentID, C=SessionID
+  const tz   = Session.getScriptTimeZone();
+  const now  = Date.now();
+  const todayStr = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd");
+
   for (let i = 0; i < vals.length; i++) {
-    if (String(vals[i][0]).trim() === roll && String(vals[i][1]).trim() === session_id) return true;
+    if (String(vals[i][1]).trim() !== roll)   continue;
+    if (String(vals[i][2]).trim().toUpperCase() !== course.toUpperCase()) continue;
+
+    let dt = vals[i][0];
+    if (!(dt instanceof Date)) { dt = new Date(dt); if (isNaN(dt.getTime())) continue; }
+
+    if (windowHours > 0) {
+      if (now - dt.getTime() <= windowHours * 3600 * 1000) return true;
+    } else {
+      if (Utilities.formatDate(dt, tz, "yyyy-MM-dd") === todayStr) return true;
+    }
   }
   return false;
 }

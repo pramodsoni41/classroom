@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbxwnTGL-pGKoZDACH0FzA2kW8PsnUddkQEc_Tyyj5Nb1O4NflaxZKI_U6pvnvk2Y0AT/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxVUkhd0Ty4CKPFHUkIlgEThdzQpNi2bce3NwKCS3H3qGP6_lcfSI4_AFhXbHHU1ImW/exec";
 const GOOGLE_CLIENT_ID = "589647151742-imup6ivhj023l40d9flhggpgg04juqbu.apps.googleusercontent.com";
 
 let dashboardData = null;
@@ -222,7 +222,6 @@ async function loadDashboard() {
 
     renderStudent(data.student);
     renderCourses(data.student.Courses);
-    renderMarkAttendance(data);
 
     if (data.student.Courses?.length) {
       selectCourse(data.student.Courses[0]);
@@ -245,22 +244,26 @@ function renderStudent(student) {
 // ==========================
 // MARK ATTENDANCE (direct — gated by Config sheet)
 // ==========================
-function renderMarkAttendance(data) {
+/* Show the button for the selected course, only if that course is open in Config. */
+function renderMarkAttendance(course) {
   const section = $("markAttendanceSection");
-  if (!section) return;
+  if (!section || !dashboardData) return;
 
-  if (data.attendanceOpen && data.activeSession) {
-    section.style.display = "";
-    $("attSessionLabel").innerText = `Session: ${data.activeSession}`;
-    if (data.attendanceMarked) {
-      $("markAttendanceBtn").disabled = true;
-      setMessage($("attendanceStatus"), "✅ Already marked for this session.", "#16a34a");
-    } else {
-      $("markAttendanceBtn").disabled = false;
-      $("attendanceStatus").innerText = "";
-    }
+  const openCourses = dashboardData.attendanceOpenCourses || [];
+  const markedMap   = dashboardData.attendanceMarked || {};
+  const isOpen = openCourses.map(c => c.toUpperCase()).includes(String(course).toUpperCase());
+
+  if (!isOpen) { section.style.display = "none"; return; }
+
+  section.style.display = "";
+  $("attSessionLabel").innerText = `Course: ${course}`;
+
+  if (markedMap[course]) {
+    $("markAttendanceBtn").disabled = true;
+    setMessage($("attendanceStatus"), "✅ Already marked today for " + course + ".", "#16a34a");
   } else {
-    section.style.display = "none";
+    $("markAttendanceBtn").disabled = false;
+    $("attendanceStatus").innerText = "";
   }
 }
 
@@ -269,9 +272,14 @@ async function markAttendance() {
   const status = $("attendanceStatus");
   const sessionToken = localStorage.getItem("student_session_token");
   const device = localStorage.getItem("device") || "";
+  const course = selectedCourse;
 
   if (!sessionToken) {
     setMessage(status, "Session expired. Please log in again.", "#ef4444");
+    return;
+  }
+  if (!course) {
+    setMessage(status, "Select a course first.", "#ef4444");
     return;
   }
 
@@ -313,6 +321,7 @@ async function markAttendance() {
   try {
     const url = `${API_URL}?action=markPresent`
       + `&sessionToken=${encodeURIComponent(sessionToken)}`
+      + `&course=${encodeURIComponent(course)}`
       + `&device_id=${encodeURIComponent(device)}`
       + `&lat=${encodeURIComponent(lat)}`
       + `&lon=${encodeURIComponent(lon)}`;
@@ -321,18 +330,19 @@ async function markAttendance() {
     if (data.status === "success") {
       setMessage(status,
         data.duplicate
-          ? `✅ Already marked for ${data.session}`
-          : `✅ Present — ${data.name} (${data.session})`,
+          ? `✅ Already marked today for ${course}`
+          : `✅ Present — ${data.name} (${course})`,
         "#16a34a");
       btn.disabled = true;   // keep disabled after success
+      if (dashboardData && dashboardData.attendanceMarked) dashboardData.attendanceMarked[course] = true;
     } else if (data.status === "no_gps") {
       setMessage(status, "❌ Location missing. Try again.", "#ef4444");
       btn.disabled = false;
     } else if (data.status === "closed") {
-      setMessage(status, "Attendance is closed right now.", "#f59e0b");
+      setMessage(status, `Attendance is not open for ${course}.`, "#f59e0b");
       $("markAttendanceSection").style.display = "none";
-    } else if (data.status === "no_session") {
-      setMessage(status, "No active session set by instructor.", "#f59e0b");
+    } else if (data.status === "not_enrolled") {
+      setMessage(status, `You are not enrolled in ${course}.`, "#ef4444");
     } else if (data.status === "unauthorized") {
       setMessage(status, "Session expired. Please log in again.", "#ef4444");
     } else {
@@ -393,6 +403,7 @@ function selectCourse(course) {
   renderNotes(notes);
   renderAnnouncements(announcements);
   renderQuizzes(quizzes);
+  renderMarkAttendance(course);
 }
 
 
