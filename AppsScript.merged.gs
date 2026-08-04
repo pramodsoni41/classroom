@@ -941,13 +941,18 @@ function markPresent_(data) {
     const session_id = String(attGetConfig_("active_session") || "").trim();
     if (!session_id) return { status: "no_session" };
 
-    // 3. Resolve the student name
+    // 3. Real GPS is mandatory (captured & stored, but never used to reject)
+    const lat = String(data.lat || "").trim();
+    const lon = String(data.lon || "").trim();
+    if (!lat || !lon) return { status: "no_gps" };
+
+    // 4. Resolve the student name
     const students = getStudentsData_();
     const student  = students.find(r => String(r.RollNo || "").trim() === roll);
     if (!student) return { status: "error", message: "Student not found" };
     const name = String(student.Name || "").trim();
 
-    // 4. One mark per student per session
+    // 5. One mark per student per session
     const ss       = SpreadsheetApp.getActiveSpreadsheet();
     const logSheet = attGetOrCreateLog_(ss);
     if (attAlreadyMarked_(logSheet, session_id, roll)) {
@@ -956,8 +961,6 @@ function markPresent_(data) {
 
     // 5. Write the record
     const device_id = String(data.device_id || "").trim();
-    const lat       = String(data.lat || "").trim();
-    const lon       = String(data.lon || "").trim();
     const row = [new Date(), roll, session_id, "DIRECT", Math.floor(Date.now() / 1000), "0s", device_id, name, lat, lon];
 
     const wl = LockService.getScriptLock();

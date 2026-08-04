@@ -1,7 +1,7 @@
 // ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbwHEH1HXWnFo5Jyhv1ViWMbPJQBLxYLr9onf6Z2WH55FkENSsAd39GArtlFYoI4KD1V/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxwnTGL-pGKoZDACH0FzA2kW8PsnUddkQEc_Tyyj5Nb1O4NflaxZKI_U6pvnvk2Y0AT/exec";
 const GOOGLE_CLIENT_ID = "589647151742-imup6ivhj023l40d9flhggpgg04juqbu.apps.googleusercontent.com";
 
 let dashboardData = null;
@@ -25,6 +25,23 @@ function redirect(page) {
   window.location.href = page;
 }
 
+/* Fetch JSON with retry — Apps Script's 302→googleusercontent.com/macros/echo
+   redirect intermittently 404s. Retrying with a short backoff self-heals it. */
+async function fetchJSON(url, tries = 3) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return await res.json();
+    } catch (err) {
+      lastErr = err;
+      if (i < tries - 1) await new Promise(r => setTimeout(r, 600 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 
 // ==========================
 // GOOGLE LOGIN
@@ -35,8 +52,7 @@ async function handleGoogleCredential(response) {
 
   try {
     const url = `${API_URL}?action=googleLogin&token=${encodeURIComponent(response.credential)}`;
-    const res  = await fetch(url);
-    const data = await res.json();
+    const data = await fetchJSON(url);
 
     if (data.status !== "success") {
       return setMessage(msg, data.message || "Google account not registered. Contact instructor.");
@@ -195,8 +211,7 @@ async function loadDashboard() {
       url += `&password=${encodeURIComponent(password)}`;
     }
 
-    const res = await fetch(url);
-    const data = await res.json();
+    const data = await fetchJSON(url);
 
     if (data.status !== "success") {
       alert(data.message || "Unauthorized access");
@@ -261,14 +276,47 @@ async function markAttendance() {
   }
 
   btn.disabled = true;
+
+  // 1. Real GPS is mandatory
+  if (!navigator.geolocation) {
+    setMessage(status, "❌ GPS not supported on this device.", "#ef4444");
+    btn.disabled = false;
+    return;
+  }
+
+  setMessage(status, "📍 Getting your location...", "#64748b");
+
+  let pos;
+  try {
+    pos = await new Promise((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true, timeout: 15000, maximumAge: 0
+      })
+    );
+  } catch (err) {
+    const msg = {
+      1: "❌ Location denied. Enable GPS/location permission and try again.",
+      2: "❌ Location unavailable. Move to an open area and retry.",
+      3: "❌ Location timed out. Try again."
+    };
+    setMessage(status, msg[err && err.code] || "❌ Could not get location.", "#ef4444");
+    btn.disabled = false;
+    return;
+  }
+
+  const lat = pos.coords.latitude.toFixed(6);
+  const lon = pos.coords.longitude.toFixed(6);
+
+  // 2. Send to server (which geofences against class_lat/class_lon/allowed_radius)
   setMessage(status, "Marking...", "#64748b");
 
   try {
     const url = `${API_URL}?action=markPresent`
       + `&sessionToken=${encodeURIComponent(sessionToken)}`
-      + `&device_id=${encodeURIComponent(device)}`;
-    const res  = await fetch(url);
-    const data = await res.json();
+      + `&device_id=${encodeURIComponent(device)}`
+      + `&lat=${encodeURIComponent(lat)}`
+      + `&lon=${encodeURIComponent(lon)}`;
+    const data = await fetchJSON(url);
 
     if (data.status === "success") {
       setMessage(status,
@@ -277,6 +325,9 @@ async function markAttendance() {
           : `✅ Present — ${data.name} (${data.session})`,
         "#16a34a");
       btn.disabled = true;   // keep disabled after success
+    } else if (data.status === "no_gps") {
+      setMessage(status, "❌ Location missing. Try again.", "#ef4444");
+      btn.disabled = false;
     } else if (data.status === "closed") {
       setMessage(status, "Attendance is closed right now.", "#f59e0b");
       $("markAttendanceSection").style.display = "none";
