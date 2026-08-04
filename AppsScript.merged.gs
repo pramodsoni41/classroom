@@ -39,7 +39,7 @@ const ATT_QR_VALIDITY_SEC   = 40;
 const ATT_QR_GRACE_SEC      = 10;
 const ATT_QR_CACHE_TTL_SEC  = 120;
 const ATT_STUDENT_CACHE_TTL = 300;
-const ATT_CONFIG_CACHE_TTL  = 300;
+const ATT_CONFIG_CACHE_TTL  = 30;   // short TTL so opening/closing attendance (attendance_open) takes effect within ~30s instead of 5 min
 const ATT_DUPLICATE_WIN_SEC = 1200;
 
 /* =========================
