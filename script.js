@@ -354,7 +354,10 @@ async function markAttendance() {
   const lat = pos.coords.latitude.toFixed(6);
   const lon = pos.coords.longitude.toFixed(6);
 
-  // 2. Send to server (which geofences against class_lat/class_lon/allowed_radius)
+  // 2. Send to server. Use JSONP (not fetch) — Apps Script's /exec → googleusercontent
+  //    /macros/echo redirect intermittently fails CORS, which made fetch throw a false
+  //    "Network error" even though the row WAS written server-side. JSONP is redirect/
+  //    CORS-immune (same path submitStudentMessage uses reliably).
   setMessage(status, "Marking...", "#64748b");
 
   try {
@@ -364,7 +367,7 @@ async function markAttendance() {
       + `&device_id=${encodeURIComponent(device)}`
       + `&lat=${encodeURIComponent(lat)}`
       + `&lon=${encodeURIComponent(lon)}`;
-    const data = await fetchJSON(url);
+    const data = await jsonpGet(url);
 
     if (data.status === "success") {
       setMessage(status,
