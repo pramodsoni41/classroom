@@ -25,6 +25,13 @@ function redirect(page) {
   window.location.href = page;
 }
 
+/* Promise wrapper around geolocation so callers can await a fix and, if it
+   fails, retry with looser options (e.g. coarse Wi-Fi location). */
+function getPosition(opts) {
+  return new Promise((resolve, reject) =>
+    navigator.geolocation.getCurrentPosition(resolve, reject, opts));
+}
+
 /* Fetch JSON with retry — Apps Script's 302→googleusercontent.com/macros/echo
    redirect intermittently 404s. Retrying with a short backoff self-heals it. */
 /* One JSONP attempt — a <script> tag with ?callback=. Apps Script returns cb({...}). */
@@ -163,17 +170,13 @@ let longitude = "";
 let accuracy = "";
 
 try {
-  const position = await new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(
-      resolve,
-      reject,
-      {
-        enableHighAccuracy: true,
-        timeout: 8000,
-        maximumAge: 0
-      }
-    );
-  });
+  let position;
+  try {
+    position = await getPosition({ enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 });
+  } catch (e1) {
+    // Fall back to a fast, coarse fix instead of giving up on location.
+    position = await getPosition({ enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 });
+  }
 
   latitude = position.coords.latitude || "";
   longitude = position.coords.longitude || "";
@@ -329,20 +332,23 @@ async function markAttendance() {
 
   let pos;
   try {
-    pos = await new Promise((resolve, reject) =>
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true, timeout: 15000, maximumAge: 0
-      })
-    );
+    // Try a precise GPS fix first...
+    pos = await getPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
   } catch (err) {
-    const msg = {
-      1: "❌ Location denied. Enable GPS/location permission and try again.",
-      2: "❌ Location unavailable. Move to an open area and retry.",
-      3: "❌ Location timed out. Try again."
-    };
-    setMessage(status, msg[err && err.code] || "❌ Could not get location.", "#ef4444");
-    btn.disabled = false;
-    return;
+    try {
+      // ...then fall back to a fast, coarse (Wi-Fi/IP) fix so laptops and
+      // indoor devices don't time out when no GPS chip is available.
+      pos = await getPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
+    } catch (err2) {
+      const msg = {
+        1: "❌ Location denied. Enable GPS/location permission and try again.",
+        2: "❌ Location unavailable. Move to an open area and retry.",
+        3: "❌ Location timed out. Try again."
+      };
+      setMessage(status, msg[err2 && err2.code] || "❌ Could not get location.", "#ef4444");
+      btn.disabled = false;
+      return;
+    }
   }
 
   const lat = pos.coords.latitude.toFixed(6);
