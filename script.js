@@ -358,7 +358,7 @@ async function markAttendance() {
       + `&device_id=${encodeURIComponent(device)}`
       + `&lat=${encodeURIComponent(lat)}`
       + `&lon=${encodeURIComponent(lon)}`;
-    const data = await jsonpGet(url);
+    const data = await fetchJSON(url);
 
     if (data.status === "success") {
       setMessage(status,
