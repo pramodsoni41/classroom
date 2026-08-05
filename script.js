@@ -332,13 +332,13 @@ async function markAttendance() {
 
   let pos;
   try {
-    // Try a precise GPS fix first...
-    pos = await getPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+    // Try a precise satellite fix first (no cached position)...
+    pos = await getPosition({ enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
   } catch (err) {
     try {
       // ...then fall back to a fast, coarse (Wi-Fi/IP) fix so laptops and
       // indoor devices don't time out when no GPS chip is available.
-      pos = await getPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
+      pos = await getPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 0 });
     } catch (err2) {
       const msg = {
         1: "❌ Location denied. Enable GPS/location permission and try again.",
