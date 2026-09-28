@@ -1,7 +1,7 @@
-// ==========================
+﻿// ==========================
 // CONFIG
 // ==========================
-const API_URL = "https://script.google.com/macros/s/AKfycbzn8KyaowmYk0dOD_FrRhIHXPS22JLybTkRleCa7WVnig0zgUQ7jZMH8NFOJV2MZwRD/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzFaQjJASU9DOsUFuPU5ucx6hl1hwMPM1UanTY6sFYthcZlIQeUpV_Ws0diOQUd0Apu/exec";
 const GOOGLE_CLIENT_ID = "589647151742-imup6ivhj023l40d9flhggpgg04juqbu.apps.googleusercontent.com";
 
 let dashboardData = null;
@@ -444,7 +444,7 @@ function selectCourse(course) {
   });
 
   renderMarks(marks);
-  renderAttendance(attendance);
+  renderAttendance(attendance, course);
   renderNotes(notes);
   renderAnnouncements(announcements);
   renderQuizzes(quizzes);
@@ -488,9 +488,29 @@ function renderMarks(list) {
 // ==========================
 // ATTENDANCE
 // ==========================
-function renderAttendance(list) {
+function renderAttendance(list, course) {
   const box = $("attendance");
-  if (!list.length) { box.innerHTML = "<p style='color:#94a3b8;font-size:14px;'>No attendance uploaded.</p>"; return; }
+
+  // Prefer the computed summary from AttendanceLogs (Total classes / Present / Absent)
+  const summary = (dashboardData.attendanceSummary || {})[course];
+  if (summary && summary.total > 0) {
+    const pct = Math.round((summary.present / summary.total) * 100);
+    const pctColor = pct >= 75 ? "#16a34a" : pct >= 60 ? "#f59e0b" : "#ef4444";
+    box.innerHTML = `
+      <table class="stat-table">
+        <tr><td>Total Classes</td><td><b>${summary.total}</b></td></tr>
+        <tr><td>Present</td><td><b>${summary.present}</b></td></tr>
+        <tr><td>Absent</td><td><b style="color:#ef4444;">${summary.absent}</b></td></tr>
+        <tr><td>Attendance %</td><td><b style="color:${pctColor};">${pct}%</b></td></tr>
+      </table>
+      <p style="font-size:12px;color:#94a3b8;margin:8px 0 0;">
+        Counted only on days a class was held (attendance recorded).
+      </p>`;
+    return;
+  }
+
+  // Fallback: manual Attendance-tab rows
+  if (!list || !list.length) { box.innerHTML = "<p style='color:#94a3b8;font-size:14px;'>No attendance uploaded.</p>"; return; }
 
   let html = "";
   list.forEach(a => {
