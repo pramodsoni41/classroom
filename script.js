@@ -494,14 +494,13 @@ function renderAttendance(list, course) {
   // Prefer the computed summary from AttendanceLogs (Total classes / Present / Absent)
   const summary = (dashboardData.attendanceSummary || {})[course];
   if (summary && summary.total > 0) {
-    const pct = Math.round((summary.present / summary.total) * 100);
-    const pctColor = pct >= 75 ? "#16a34a" : pct >= 60 ? "#f59e0b" : "#ef4444";
+    const absPct = Math.round((summary.absent / summary.total) * 100);
+    const pctColor = absPct <= 25 ? "#16a34a" : absPct <= 40 ? "#f59e0b" : "#ef4444";
     box.innerHTML = `
       <table class="stat-table">
         <tr><td>Total Classes</td><td><b>${summary.total}</b></td></tr>
-        <tr><td>Present</td><td><b>${summary.present}</b></td></tr>
         <tr><td>Absent</td><td><b style="color:#ef4444;">${summary.absent}</b></td></tr>
-        <tr><td>Attendance %</td><td><b style="color:${pctColor};">${pct}%</b></td></tr>
+        <tr><td>Absent %</td><td><b style="color:${pctColor};">${absPct}%</b></td></tr>
       </table>
       <p style="font-size:12px;color:#94a3b8;margin:8px 0 0;">
         Counted only on days a class was held (attendance recorded).
