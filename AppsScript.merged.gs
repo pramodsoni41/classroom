@@ -620,21 +620,23 @@ function dashboard(e) {
   const studentOpen_   = openCoursesRaw.filter(c =>
     courses.map(x => x.toUpperCase()).includes(c.toUpperCase())
   );
-  const logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("AttendanceLogs");
-  const attMarkedMap_ = {};
-  if (studentOpen_.length && logSheet) {
-    const windowHrs = parseFloat(attGetConfig_("attendance_window_hours")) || 0;
-    studentOpen_.forEach(c => { attMarkedMap_[c] = attMarkedRecently_(logSheet, c, roll, windowHrs); });
-  }
+  // Attendance is read ONCE from a cached aggregation (shared across all students)
+  // instead of re-scanning the whole AttendanceLogs sheet on every dashboard load.
+  const agg = attAggregate_();                 // { COURSE: { "yyyy-MM-dd": [rolls] } }
+  const todayStr_ = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
 
-  // Computed attendance summary from AttendanceLogs (per course).
+  const attMarkedMap_ = {};
+  studentOpen_.forEach(c => {
+    const days = agg[c.toUpperCase()] || {};
+    attMarkedMap_[c] = (days[todayStr_] || []).indexOf(String(roll)) >= 0;
+  });
+
+  // Computed attendance summary per course (from the cached aggregation).
   const attnSummary_ = {};
-  if (logSheet) {
-    courses.forEach(c => {
-      const s = attCourseSummary_(logSheet, c, roll);
-      if (s.total > 0) attnSummary_[c] = s;
-    });
-  }
+  courses.forEach(c => {
+    const s = attCourseSummaryFromAgg_(agg, c, roll);
+    if (s.total > 0) attnSummary_[c] = s;
+  });
 
   return jsonOutput({
     status: "success",
@@ -717,6 +719,7 @@ function changePassword(e) {
       }
       sheet.getRange(i + 1, passIndex + 1).setValue(newPass);
       SpreadsheetApp.flush();
+      try { CacheService.getScriptCache().remove("students_data_v1"); } catch (e) {}
       return jsonOutput({ status: "success", message: "Password updated" });
     }
   }
@@ -729,15 +732,28 @@ function changePassword(e) {
 ========================= */
 
 function getStudentsData_() {
+  // Cached ~120s — this is read several times per request and by every student.
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get("students_data_v1");
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
   const ss    = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(STUDENT_TAB);
-  return convertToObjects_(sheet.getDataRange().getValues());
+  const data  = convertToObjects_(sheet.getDataRange().getValues());
+  try { cache.put("students_data_v1", JSON.stringify(data), 120); } catch (e) {}
+  return data;
 }
 
 function getSheetData_(sheetName) {
+  // Cached ~60s to cut whole-sheet reads when many students load at once.
+  const cache = CacheService.getScriptCache();
+  const key = "sheetdata_" + sheetName + "_v1";
+  const hit = cache.get(key);
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
   if (!sheet) return [];
-  return convertToObjects_(sheet.getDataRange().getValues());
+  const data = convertToObjects_(sheet.getDataRange().getValues());
+  try { cache.put(key, JSON.stringify(data), 60); } catch (e) {}
+  return data;
 }
 
 function convertToObjects_(values) {
@@ -998,11 +1014,13 @@ function markPresentCore_(data) {
     const lon = String(data.lon || "").trim();
     if (!lat || !lon) return { status: "no_gps" };
 
-    // 5. Note if already marked today/within window — but ALLOW the mark anyway
-    const ss         = SpreadsheetApp.getActiveSpreadsheet();
-    const logSheet   = attGetOrCreateLog_(ss);
-    const windowHrs  = parseFloat(attGetConfig_("attendance_window_hours")) || 0;
-    const already    = attMarkedRecently_(logSheet, course, roll, windowHrs);
+    // 5. Note if already marked today (from cached aggregation) — but ALLOW the mark anyway.
+    //    Avoids re-scanning AttendanceLogs on every mark during a busy class.
+    const ss       = SpreadsheetApp.getActiveSpreadsheet();
+    const logSheet = attGetOrCreateLog_(ss);
+    const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+    const aggC     = (attAggregate_()[course.toUpperCase()] || {})[todayStr] || [];
+    const already  = aggC.indexOf(String(roll)) >= 0;
 
     // 6. Always write the record (duplicates allowed). SessionID = course.
     const device_id = String(data.device_id || "").trim();
@@ -1078,33 +1096,54 @@ function attParseYMD_(s) {
               min(today, <course>_end), using <course>_days (e.g. Tue,Wed,Fri)
      absent = real class days the student missed
    If no schedule is configured, total = number of real class days with data. */
-function attCourseSummary_(logSheet, course, roll) {
-  const tz = Session.getScriptTimeZone();
-  const minPresent = parseInt(attGetConfig_("attendance_min_present"), 10) || 3;
+/* Scan AttendanceLogs ONCE and cache the aggregation, shared across all requests.
+   Returns { COURSE: { "yyyy-MM-dd": [roll, roll, ...] } }.
+   Cached ~90s so concurrent dashboard loads don't each re-scan the sheet. */
+function attAggregate_() {
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get("att_agg_v1");
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
 
-  // Per-date: distinct rolls that marked, and whether THIS student marked.
-  const dayRolls = {};   // ds -> { roll: true }
-  const mine     = {};   // ds -> true
-  const last = logSheet.getLastRow();
-  if (last >= 2) {
-    const vals = logSheet.getRange(2, 1, last - 1, 3).getValues();  // A=DateTime, B=StudentID, C=SessionID
-    for (let i = 0; i < vals.length; i++) {
-      if (String(vals[i][2]).trim().toUpperCase() !== course.toUpperCase()) continue;
-      let dt = vals[i][0];
-      if (!(dt instanceof Date)) { dt = new Date(dt); if (isNaN(dt.getTime())) continue; }
-      const ds = Utilities.formatDate(dt, tz, "yyyy-MM-dd");
-      const r  = String(vals[i][1]).trim();
-      (dayRolls[ds] = dayRolls[ds] || {})[r] = true;
-      if (r === String(roll).trim()) mine[ds] = true;
+  const agg = {};
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("AttendanceLogs");
+  if (sh) {
+    const last = sh.getLastRow();
+    if (last >= 2) {
+      const vals = sh.getRange(2, 1, last - 1, 3).getValues();  // A=DateTime, B=StudentID, C=SessionID
+      const tz = Session.getScriptTimeZone();
+      for (let i = 0; i < vals.length; i++) {
+        const course = String(vals[i][2]).trim().toUpperCase();
+        if (!course) continue;
+        let dt = vals[i][0];
+        if (!(dt instanceof Date)) { dt = new Date(dt); if (isNaN(dt.getTime())) continue; }
+        const ds = Utilities.formatDate(dt, tz, "yyyy-MM-dd");
+        let r = String(vals[i][1]).trim();
+        if (r.slice(-2) === ".0") r = r.slice(0, -2);
+        if (!r) continue;
+        const c = agg[course] || (agg[course] = {});
+        const arr = c[ds] || (c[ds] = []);
+        if (arr.indexOf(r) < 0) arr.push(r);
+      }
     }
   }
-  // Which dates qualify as a real class day (>= minPresent distinct students)?
-  const realDay = {};
-  Object.keys(dayRolls).forEach(ds => {
-    if (Object.keys(dayRolls[ds]).length >= minPresent) realDay[ds] = true;
+  try { cache.put("att_agg_v1", JSON.stringify(agg), 90); } catch (e) {}  // skip cache if >100KB
+  return agg;
+}
+
+/* Per-course attendance summary computed from the cached aggregation (no scan). */
+function attCourseSummaryFromAgg_(agg, course, roll) {
+  const tz = Session.getScriptTimeZone();
+  const minPresent = parseInt(attGetConfig_("attendance_min_present"), 10) || 3;
+  const days = agg[course.toUpperCase()] || {};
+  const rollStr = String(roll);
+
+  const realDay = {}, mine = {};
+  Object.keys(days).forEach(ds => {
+    const arr = days[ds];
+    if (arr.length >= minPresent) realDay[ds] = true;
+    if (arr.indexOf(rollStr) >= 0) mine[ds] = true;
   });
 
-  // Calendar-based total when a schedule is configured.
   const start   = attParseYMD_(attGetConfig_(course + "_start"));
   let   end     = attParseYMD_(attGetConfig_(course + "_end"));
   const dayNums = attParseDays_(attGetConfig_(course + "_days"));
@@ -1112,15 +1151,11 @@ function attCourseSummary_(logSheet, course, roll) {
   if (start && dayNums.length) {
     const today = new Date();
     if (!end || end > today) end = today;
-    let total = 0;
-    const sched = {};
+    let total = 0; const sched = {};
     const d    = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 12);
     const endD = new Date(end.getFullYear(),   end.getMonth(),   end.getDate(),   12);
     while (d <= endD) {
-      if (dayNums.indexOf(d.getDay()) >= 0) {
-        total++;
-        sched[Utilities.formatDate(d, tz, "yyyy-MM-dd")] = true;
-      }
+      if (dayNums.indexOf(d.getDay()) >= 0) { total++; sched[Utilities.formatDate(d, tz, "yyyy-MM-dd")] = true; }
       d.setDate(d.getDate() + 1);
     }
     let absent = 0;
@@ -1128,12 +1163,8 @@ function attCourseSummary_(logSheet, course, roll) {
     return { total: total, present: total - absent, absent: absent };
   }
 
-  // Fallback: total = real class days with data.
   let total = 0, absent = 0, present = 0;
-  Object.keys(realDay).forEach(ds => {
-    total++;
-    if (mine[ds]) present++; else absent++;
-  });
+  Object.keys(realDay).forEach(ds => { total++; if (mine[ds]) present++; else absent++; });
   return { total: total, present: present, absent: absent };
 }
 
